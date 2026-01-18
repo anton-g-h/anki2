@@ -1,0 +1,2151 @@
+<div id="debug-console" style="display:none; position:fixed; bottom:0; left:0; width:100%; background:rgba(30, 0, 0, 0.95); color:#ff5555; font-family:monospace; font-size:12px; padding:12px; z-index:110000; box-sizing:border-box; max-height:200px; overflow-y:auto; border-top: 3px solid #ff0000; pointer-events: auto;">
+  <button onclick="this.parentElement.style.display='none'" style="float:right; background:#ff4444; color:#fff; border:none; padding:4px 8px; cursor:pointer; font-weight:bold; border-radius:3px;">X</button>
+  <div style="color:#aaa; text-transform:uppercase; font-size:10px; margin-bottom:8px; border-bottom:1px solid #444;">Javascript Debug Monitor</div>
+  <div id="debug-msg"></div>
+</div>
+<script>
+window.onerror = function(msg, url, lineNo, columnNo, error) {
+  var debugConsole = document.getElementById('debug-console');
+  var debugMsg = document.getElementById('debug-msg');
+  if (debugConsole) debugConsole.style.display = 'block';
+  if (debugMsg) {
+    var div = document.createElement('div');
+    div.style.cssText = "border-bottom:1px solid #555; padding:4px; margin-bottom:4px; line-height:1.4;";
+    div.innerHTML = `<span style="color:#ffcc00">[Line ${lineNo}]</span> ${msg}`;
+    debugMsg.appendChild(div);
+  }
+  return false;
+};
+</script>
+
+<div id="back-view-root">
+  <div class="card-container">
+    <div class="deck-text">{{Deck}}</div>
+    <div class="front-text" id="game-wrapper-back">{{Front}}</div>
+    <hr id="answer-separator">
+    <div class="back-text">{{Back}}</div>
+    {{#Explanation}}
+    <div class="extension-container">
+      <div class="extension-label">ZUSATZINFORMATIONEN</div>
+      <div class="extension-text">{{Explanation}}</div>
+    </div>
+    {{/Explanation}}
+  </div>
+</div>
+
+<div id="editor-container" style="display:none;">
+  <div class="card-container editor-mode">
+    <div id="d-image" style="display:none">{{Image}}</div>
+    <div id="d-objectimages" style="display:none">{{ObjectImages}}</div>
+    <div id="d-savecode" style="display:none">{{SaveCode}}</div>
+
+    <div class="deck-text">{{Deck}}</div>
+    <div class="front-text">{{Front}}</div>
+
+    <div class="integrated-app" id="app-root">
+      <div class="sticky-wrapper">
+        <div id="setup-toolbar" class="app-toolbar">
+
+          <div class="tb-scroll" id="tb-tools">
+            <button id="btn-view" class="tb-btn" title="View / Pan (Scroll Enabled)">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C12 2 11 2.19 11 4V10.5C11 10.78 10.78 11 10.5 11C10.22 11 10 10.78 10 10.5V6C10 6 9 5 7.5 5C6 5 5 6 5 6V13C5 13 4.88 16.8 8 19C10.5 20.76 13 21 15 21C16.8 21 19 20 19 15V8C19 8 18 6 16.5 6C15 6 14 8 14 8V10.5C14 10.78 13.78 11 13.5 11C13.22 11 13 10.78 13 10.5V4C13 4 13 2 12 2Z"/></svg>
+            </button>
+
+            <button id="btn-sel" class="tb-btn" title="Select / Edit">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M7 2L19 13H12L15 21L11 22L8 15L4 18V2Z"/></svg>
+            </button>
+
+            <div class="tb-div"></div>
+
+            <button id="btn-pt" class="tb-btn" title="Point (tap again for options)">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>
+            </button>
+            <button id="btn-dr" class="tb-btn" title="Freehand Draw (tap again for options)">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M3 17.25V21H6.75L17.81 9.94L14.06 6.19L3 17.25ZM20.71 7.04C21.1 6.65 21.1 6.02 20.71 5.63L18.37 3.29C17.98 2.9 17.35 2.9 16.96 3.29L15.13 5.12L18.88 8.87L20.71 7.04Z"/></svg>
+            </button>
+            <button id="btn-ln" class="tb-btn" title="Poly Line (tap again for options)">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 19L9 6L15 16L21 5"/></svg>
+            </button>
+            <button id="btn-sq" class="tb-btn" title="Rectangle (tap again for options)">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+            </button>
+            <button id="btn-poly" class="tb-btn" title="Polygon (tap again for options)">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3L21 9L18 20H6L3 9L12 3Z"/></svg>
+            </button>
+            <button id="btn-txt" class="tb-btn" title="Text (tap again for options)">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M5 4V7H10.5V19H13.5V7H19V4H5Z"/></svg>
+            </button>
+
+            <div class="tb-div"></div>
+
+            <button id="btn-del" class="tb-btn tb-red" title="Delete Selected">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M6 19C6 20.1 6.9 21 8 21H16C17.1 21 18 20.1 18 19V7H6V19ZM19 4H15.5L14.5 3H9.5L8.5 4H5V6H19V4Z"/></svg>
+            </button>
+            <button id="btn-dup" class="tb-btn" title="Duplicate Selected">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1H19V5H22V19C22 20.1 21.1 21 20 21H8C6.9 21 6 20.1 6 19V7H4V19C4 21.2 5.8 23 8 23H20C22.2 23 24 21.2 24 19V5C24 2.8 22.2 1 20 1H16Z"/></svg>
+            </button>
+
+            <div class="tb-div"></div>
+
+            <button id="btn-crop" class="tb-btn" title="Crop Image" style="display:none;">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17 15H19V17H17V15ZM7 7H9V9H7V7ZM19 19H21V21H7C5.9 21 5 20.1 5 19V5H7V19H19ZM9 5H21V7H9V5ZM17 9H19V13H17V9ZM13 9H15V13H13V9Z"/></svg>
+            </button>
+
+            <button id="btn-edit-text" class="tb-btn" title="Rename Item">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M20 5H4C2.9 5 2 5.9 2 7V17C2 18.1 2.9 19 4 19H20C21.1 19 22 18.1 22 17V7C22 5.9 21.1 5 20 5ZM11 8H13V10H11V8ZM11 11H13V13H11V11ZM8 8H10V10H8V8ZM8 11H10V13H8V11ZM7 13H5V11H7V13ZM7 10H5V8H7V10ZM16 17H8V15H16V17ZM16 13H14V11H16V13ZM16 10H14V8H16V10ZM19 13H17V11H19V13ZM19 10H17V8H19V10Z"/></svg>
+            </button>
+
+            <div class="tb-div"></div>
+
+            <button id="btn-type" class="tb-btn" title="Quiz Mask Toggle">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12C2.73 16.39 7 19.5 12 19.5C17 19.5 21.27 16.39 23 12C21.27 7.61 17 4.5 12 4.5ZM12 17C9.24 17 7 14.76 7 12C7 9.24 9.24 7 12 7C14.76 7 17 9.24 17 12C17 14.76 14.76 17 12 17ZM12 9C10.34 9 9 10.34 9 12C9 13.66 10.34 15 12 15C13.66 15 15 13.66 15 12C15 10.34 13.66 9 12 9Z"/></svg>
+            </button>
+
+            <div class="tb-div"></div>
+
+            <button id="btn-save" class="tb-btn tb-green" title="Save">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17 3H5C3.89 3 3 3.9 3 5V19C3 20.1 3.89 21 5 21H19C20.1 21 21 20.1 21 19V7L17 3ZM12 19C10.34 19 9 17.66 9 16C9 14.34 10.34 13 12 13C13.66 13 15 14.34 15 16C15 17.66 13.66 19 12 19ZM15 9H5V5H15V9Z"/></svg>
+            </button>
+          </div>
+
+
+
+
+          
+<div class="tool-menus" id="tool-menus">
+
+  <div class="tool-menu tool-menu--point" id="menu-point">
+    <input type="checkbox" id="pt-num" style="display:none">
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Color">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+      </span>
+      <input type="color" id="pt-fill">
+      <button class="tb-mini" id="pt-pick-fill" title="Pick Color"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19.35 10.04C18.67 7.49 16.25 5.6 13.5 5.6H13c-2.35 0-4.35 1.38-5.33 3.36-1.04 1.33-2.12 3.8-2.12 3.8-.46.85-.75 2.37-.3 3.25.46.89 1.39 1.39 2.25 1.39.55 0 1.05-.22 1.5-.55.38-.28.78-.39 1.15-.39.68 0 1.45.38 2.3 1.09 1.17.97 2.72 1.45 4.3 1.45 2.1 0 4.25-.84 5.75-2.6 1.83-2.14 1.62-5.7.82-8.36zm-4.1 3.21c-.44.22-.84.44-1.25.68v-2.31c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v3.1c-.88-.5-1.78-.97-2.66-1.39L6.5 10.5c.98.5 2.08 1.07 3.2 1.66l.01.01.05.02c.07.04.14.07.21.11.45.23.91.46 1.36.69l1.67.84v-2.1c0-.28.22-.5.5-.5s.5.22.5.5v2.66c.55.15 1.15.22 1.77.22 1.28 0 2.53-.33 3.65-.92l-4.17-2.42z"/></svg></button>
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Border">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="9"/></svg>
+      </span>
+      <input type="color" id="pt-border">
+      <button class="tb-mini" id="pt-pick-border" title="Pick Border"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19.35 10.04C18.67 7.49 16.25 5.6 13.5 5.6H13c-2.35 0-4.35 1.38-5.33 3.36-1.04 1.33-2.12 3.8-2.12 3.8-.46.85-.75 2.37-.3 3.25.46.89 1.39 1.39 2.25 1.39.55 0 1.05-.22 1.5-.55.38-.28.78-.39 1.15-.39.68 0 1.45.38 2.3 1.09 1.17.97 2.72 1.45 4.3 1.45 2.1 0 4.25-.84 5.75-2.6 1.83-2.14 1.62-5.7.82-8.36zm-4.1 3.21c-.44.22-.84.44-1.25.68v-2.31c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v3.1c-.88-.5-1.78-.97-2.66-1.39L6.5 10.5c.98.5 2.08 1.07 3.2 1.66l.01.01.05.02c.07.04.14.07.21.11.45.23.91.46 1.36.69l1.67.84v-2.1c0-.28.22-.5.5-.5s.5.22.5.5v2.66c.55.15 1.15.22 1.77.22 1.28 0 2.53-.33 3.65-.92l-4.17-2.42z"/></svg></button>
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Opacity">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+      </span>
+      <input type="range" id="pt-op" min="0" max="100">
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Size">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="6" cy="12" r="3"/><circle cx="18" cy="12" r="6"/></svg>
+      </span>
+      <input type="range" id="pt-size" min="5" max="150">
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Border Width">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="2" y="9" width="20" height="2"/><rect x="2" y="13" width="20" height="4"/></svg>
+      </span>
+      <input type="range" id="pt-bw" min="0" max="20">
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Shape/Radius">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5" ry="5"/></svg>
+      </span>
+      <input type="range" id="pt-rad" min="0" max="50">
+    </div>
+
+    <button class="tb-btn tb-toggle" id="pt-num-toggle" title="Show Number">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M20 10V8h-4V4h-2v4h-4V4H8v4H4v2h4v4H4v2h4v4h2v-4h4v4h2v-4h4v-2h-4v-4h4zm-6 4h-4v-4h4v4z"/></svg>
+    </button>
+  </div>
+
+  <div class="tool-menu tool-menu--text" id="menu-text">
+    <input type="checkbox" id="tx-bgOn" style="display:none">
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Text Color">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M5 4v3h5.5v12h3V7H19V4z"/></svg>
+      </span>
+      <input type="color" id="tx-fill">
+      <button class="tb-mini" id="tx-pick-fill" title="Pick Text Color"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19.35 10.04C18.67 7.49 16.25 5.6 13.5 5.6H13c-2.35 0-4.35 1.38-5.33 3.36-1.04 1.33-2.12 3.8-2.12 3.8-.46.85-.75 2.37-.3 3.25.46.89 1.39 1.39 2.25 1.39.55 0 1.05-.22 1.5-.55.38-.28.78-.39 1.15-.39.68 0 1.45.38 2.3 1.09 1.17.97 2.72 1.45 4.3 1.45 2.1 0 4.25-.84 5.75-2.6 1.83-2.14 1.62-5.7.82-8.36zm-4.1 3.21c-.44.22-.84.44-1.25.68v-2.31c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v3.1c-.88-.5-1.78-.97-2.66-1.39L6.5 10.5c.98.5 2.08 1.07 3.2 1.66l.01.01.05.02c.07.04.14.07.21.11.45.23.91.46 1.36.69l1.67.84v-2.1c0-.28.22-.5.5-.5s.5.22.5.5v2.66c.55.15 1.15.22 1.77.22 1.28 0 2.53-.33 3.65-.92l-4.17-2.42z"/></svg></button>
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Background">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z"/></svg>
+      </span>
+      <input type="color" id="tx-bg">
+      <button class="tb-mini" id="tx-pick-bg" title="Pick Bg Color"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19.35 10.04C18.67 7.49 16.25 5.6 13.5 5.6H13c-2.35 0-4.35 1.38-5.33 3.36-1.04 1.33-2.12 3.8-2.12 3.8-.46.85-.75 2.37-.3 3.25.46.89 1.39 1.39 2.25 1.39.55 0 1.05-.22 1.5-.55.38-.28.78-.39 1.15-.39.68 0 1.45.38 2.3 1.09 1.17.97 2.72 1.45 4.3 1.45 2.1 0 4.25-.84 5.75-2.6 1.83-2.14 1.62-5.7.82-8.36zm-4.1 3.21c-.44.22-.84.44-1.25.68v-2.31c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v3.1c-.88-.5-1.78-.97-2.66-1.39L6.5 10.5c.98.5 2.08 1.07 3.2 1.66l.01.01.05.02c.07.04.14.07.21.11.45.23.91.46 1.36.69l1.67.84v-2.1c0-.28.22-.5.5-.5s.5.22.5.5v2.66c.55.15 1.15.22 1.77.22 1.28 0 2.53-.33 3.65-.92l-4.17-2.42z"/></svg></button>
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Opacity">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+      </span>
+      <input type="range" id="tx-op" min="0" max="100">
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Font Size">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M9 4v3h5v12h3V7h5V4H9zm-6 8h3v7h3v-7h3V9H3v3z"/></svg>
+      </span>
+      <input type="range" id="tx-size" min="8" max="150">
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Bg Opacity">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M4 4h16v16H4V4zm2 2v12h12V6H6z" opacity="0.5"/><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+      </span>
+      <input type="range" id="tx-bgop" min="0" max="100">
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Padding">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M15 15H9V9h6v6zm-2-4h-2v2h2v-2zm8-8H3v18h18V3zm-2 16H5V5h14v14z"/></svg>
+      </span>
+      <input type="range" id="tx-pad" min="0" max="50">
+    </div>
+
+    <button class="tb-btn tb-toggle" id="tx-bgOn-toggle" title="Background Toggle">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M21 3H3v18h18V3zM5 19V5h14v14H5z"/><path d="M7 7h10v2H7z"/></svg>
+    </button>
+  </div>
+
+  <div class="tool-menu tool-menu--draw" id="menu-draw">
+    <input type="checkbox" id="dr-nofill" style="display:none">
+    <input type="checkbox" id="dr-borderon" style="display:none">
+    <input type="checkbox" id="dr-smooth" style="display:none">
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Fill">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+      </span>
+      <input type="color" id="dr-fill">
+      <button class="tb-mini" id="dr-pick-fill" title="Pick Fill"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19.35 10.04C18.67 7.49 16.25 5.6 13.5 5.6H13c-2.35 0-4.35 1.38-5.33 3.36-1.04 1.33-2.12 3.8-2.12 3.8-.46.85-.75 2.37-.3 3.25.46.89 1.39 1.39 2.25 1.39.55 0 1.05-.22 1.5-.55.38-.28.78-.39 1.15-.39.68 0 1.45.38 2.3 1.09 1.17.97 2.72 1.45 4.3 1.45 2.1 0 4.25-.84 5.75-2.6 1.83-2.14 1.62-5.7.82-8.36zm-4.1 3.21c-.44.22-.84.44-1.25.68v-2.31c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v3.1c-.88-.5-1.78-.97-2.66-1.39L6.5 10.5c.98.5 2.08 1.07 3.2 1.66l.01.01.05.02c.07.04.14.07.21.11.45.23.91.46 1.36.69l1.67.84v-2.1c0-.28.22-.5.5-.5s.5.22.5.5v2.66c.55.15 1.15.22 1.77.22 1.28 0 2.53-.33 3.65-.92l-4.17-2.42z"/></svg></button>
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Stroke">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="9"/></svg>
+      </span>
+      <input type="color" id="dr-stroke">
+      <button class="tb-mini" id="dr-pick-stroke" title="Pick Stroke"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19.35 10.04C18.67 7.49 16.25 5.6 13.5 5.6H13c-2.35 0-4.35 1.38-5.33 3.36-1.04 1.33-2.12 3.8-2.12 3.8-.46.85-.75 2.37-.3 3.25.46.89 1.39 1.39 2.25 1.39.55 0 1.05-.22 1.5-.55.38-.28.78-.39 1.15-.39.68 0 1.45.38 2.3 1.09 1.17.97 2.72 1.45 4.3 1.45 2.1 0 4.25-.84 5.75-2.6 1.83-2.14 1.62-5.7.82-8.36zm-4.1 3.21c-.44.22-.84.44-1.25.68v-2.31c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v3.1c-.88-.5-1.78-.97-2.66-1.39L6.5 10.5c.98.5 2.08 1.07 3.2 1.66l.01.01.05.02c.07.04.14.07.21.11.45.23.91.46 1.36.69l1.67.84v-2.1c0-.28.22-.5.5-.5s.5.22.5.5v2.66c.55.15 1.15.22 1.77.22 1.28 0 2.53-.33 3.65-.92l-4.17-2.42z"/></svg></button>
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Fill Opacity">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+      </span>
+      <input type="range" id="dr-fop" min="0" max="100">
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Stroke Opacity">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+      </span>
+      <input type="range" id="dr-sop" min="0" max="100">
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Stroke Width">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="2" y="9" width="20" height="2"/><rect x="2" y="13" width="20" height="4"/></svg>
+      </span>
+      <input type="range" id="dr-sw" min="1" max="50">
+    </div>
+
+    <button class="tb-btn tb-toggle" id="dr-nofill-toggle" title="No Fill">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM4 12c0-4.42 3.58-8 8-8 1.85 0 3.55.63 4.9 1.69L5.69 16.9C4.63 15.55 4 13.85 4 12zm8 8c-1.85 0-3.55-.63-4.9-1.69L18.31 7.1C19.37 8.45 20 10.15 20 12c0 4.42-3.58 8-8 8z"/></svg>
+    </button>
+    <button class="tb-btn tb-toggle" id="dr-borderon-toggle" title="Show Stroke">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 5v14H5V5h14m2-2H3v18h18V3z"/></svg>
+    </button>
+    <button class="tb-btn tb-toggle" id="dr-smooth-toggle" title="Smooth">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12c4-8 12 8 20 0"/></svg>
+    </button>
+  </div>
+
+  <div class="tool-menu tool-menu--line" id="menu-line">
+    <input type="checkbox" id="ln-nofill" style="display:none">
+    <input type="checkbox" id="ln-borderon" style="display:none">
+    <input type="checkbox" id="ln-smooth" style="display:none">
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Fill">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+      </span>
+      <input type="color" id="ln-fill">
+      <button class="tb-mini" id="ln-pick-fill" title="Pick Fill"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19.35 10.04C18.67 7.49 16.25 5.6 13.5 5.6H13c-2.35 0-4.35 1.38-5.33 3.36-1.04 1.33-2.12 3.8-2.12 3.8-.46.85-.75 2.37-.3 3.25.46.89 1.39 1.39 2.25 1.39.55 0 1.05-.22 1.5-.55.38-.28.78-.39 1.15-.39.68 0 1.45.38 2.3 1.09 1.17.97 2.72 1.45 4.3 1.45 2.1 0 4.25-.84 5.75-2.6 1.83-2.14 1.62-5.7.82-8.36zm-4.1 3.21c-.44.22-.84.44-1.25.68v-2.31c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v3.1c-.88-.5-1.78-.97-2.66-1.39L6.5 10.5c.98.5 2.08 1.07 3.2 1.66l.01.01.05.02c.07.04.14.07.21.11.45.23.91.46 1.36.69l1.67.84v-2.1c0-.28.22-.5.5-.5s.5.22.5.5v2.66c.55.15 1.15.22 1.77.22 1.28 0 2.53-.33 3.65-.92l-4.17-2.42z"/></svg></button>
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Stroke">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="9"/></svg>
+      </span>
+      <input type="color" id="ln-stroke">
+      <button class="tb-mini" id="ln-pick-stroke" title="Pick Stroke"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19.35 10.04C18.67 7.49 16.25 5.6 13.5 5.6H13c-2.35 0-4.35 1.38-5.33 3.36-1.04 1.33-2.12 3.8-2.12 3.8-.46.85-.75 2.37-.3 3.25.46.89 1.39 1.39 2.25 1.39.55 0 1.05-.22 1.5-.55.38-.28.78-.39 1.15-.39.68 0 1.45.38 2.3 1.09 1.17.97 2.72 1.45 4.3 1.45 2.1 0 4.25-.84 5.75-2.6 1.83-2.14 1.62-5.7.82-8.36zm-4.1 3.21c-.44.22-.84.44-1.25.68v-2.31c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v3.1c-.88-.5-1.78-.97-2.66-1.39L6.5 10.5c.98.5 2.08 1.07 3.2 1.66l.01.01.05.02c.07.04.14.07.21.11.45.23.91.46 1.36.69l1.67.84v-2.1c0-.28.22-.5.5-.5s.5.22.5.5v2.66c.55.15 1.15.22 1.77.22 1.28 0 2.53-.33 3.65-.92l-4.17-2.42z"/></svg></button>
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Fill Opacity">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+      </span>
+      <input type="range" id="ln-fop" min="0" max="100">
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Stroke Opacity">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+      </span>
+      <input type="range" id="ln-sop" min="0" max="100">
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Stroke Width">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="2" y="9" width="20" height="2"/><rect x="2" y="13" width="20" height="4"/></svg>
+      </span>
+      <input type="range" id="ln-sw" min="1" max="50">
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Corner Radius">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h10c3.31 0 6-2.69 6-6V4"/></svg>
+      </span>
+      <input type="range" id="ln-rx" min="0" max="100">
+    </div>
+
+    <button class="tb-btn tb-toggle" id="ln-nofill-toggle" title="No Fill">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM4 12c0-4.42 3.58-8 8-8 1.85 0 3.55.63 4.9 1.69L5.69 16.9C4.63 15.55 4 13.85 4 12zm8 8c-1.85 0-3.55-.63-4.9-1.69L18.31 7.1C19.37 8.45 20 10.15 20 12c0 4.42-3.58 8-8 8z"/></svg>
+    </button>
+    <button class="tb-btn tb-toggle" id="ln-borderon-toggle" title="Show Stroke">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 5v14H5V5h14m2-2H3v18h18V3z"/></svg>
+    </button>
+    <button class="tb-btn tb-toggle" id="ln-smooth-toggle" title="Smooth">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12c4-8 12 8 20 0"/></svg>
+    </button>
+  </div>
+
+  <div class="tool-menu tool-menu--square" id="menu-square">
+    <input type="checkbox" id="sq-nofill" style="display:none">
+    <input type="checkbox" id="sq-borderon" style="display:none">
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Fill">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+      </span>
+      <input type="color" id="sq-fill">
+      <button class="tb-mini" id="sq-pick-fill" title="Pick Fill"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19.35 10.04C18.67 7.49 16.25 5.6 13.5 5.6H13c-2.35 0-4.35 1.38-5.33 3.36-1.04 1.33-2.12 3.8-2.12 3.8-.46.85-.75 2.37-.3 3.25.46.89 1.39 1.39 2.25 1.39.55 0 1.05-.22 1.5-.55.38-.28.78-.39 1.15-.39.68 0 1.45.38 2.3 1.09 1.17.97 2.72 1.45 4.3 1.45 2.1 0 4.25-.84 5.75-2.6 1.83-2.14 1.62-5.7.82-8.36zm-4.1 3.21c-.44.22-.84.44-1.25.68v-2.31c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v3.1c-.88-.5-1.78-.97-2.66-1.39L6.5 10.5c.98.5 2.08 1.07 3.2 1.66l.01.01.05.02c.07.04.14.07.21.11.45.23.91.46 1.36.69l1.67.84v-2.1c0-.28.22-.5.5-.5s.5.22.5.5v2.66c.55.15 1.15.22 1.77.22 1.28 0 2.53-.33 3.65-.92l-4.17-2.42z"/></svg></button>
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Stroke">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="9"/></svg>
+      </span>
+      <input type="color" id="sq-stroke">
+      <button class="tb-mini" id="sq-pick-stroke" title="Pick Stroke"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19.35 10.04C18.67 7.49 16.25 5.6 13.5 5.6H13c-2.35 0-4.35 1.38-5.33 3.36-1.04 1.33-2.12 3.8-2.12 3.8-.46.85-.75 2.37-.3 3.25.46.89 1.39 1.39 2.25 1.39.55 0 1.05-.22 1.5-.55.38-.28.78-.39 1.15-.39.68 0 1.45.38 2.3 1.09 1.17.97 2.72 1.45 4.3 1.45 2.1 0 4.25-.84 5.75-2.6 1.83-2.14 1.62-5.7.82-8.36zm-4.1 3.21c-.44.22-.84.44-1.25.68v-2.31c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v3.1c-.88-.5-1.78-.97-2.66-1.39L6.5 10.5c.98.5 2.08 1.07 3.2 1.66l.01.01.05.02c.07.04.14.07.21.11.45.23.91.46 1.36.69l1.67.84v-2.1c0-.28.22-.5.5-.5s.5.22.5.5v2.66c.55.15 1.15.22 1.77.22 1.28 0 2.53-.33 3.65-.92l-4.17-2.42z"/></svg></button>
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Fill Opacity">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+      </span>
+      <input type="range" id="sq-fop" min="0" max="100">
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Stroke Opacity">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+      </span>
+      <input type="range" id="sq-sop" min="0" max="100">
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Stroke Width">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="2" y="9" width="20" height="2"/><rect x="2" y="13" width="20" height="4"/></svg>
+      </span>
+      <input type="range" id="sq-sw" min="1" max="50">
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Corner Radius">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h10c3.31 0 6-2.69 6-6V4"/></svg>
+      </span>
+      <input type="range" id="sq-rx" min="0" max="100">
+    </div>
+
+    <button class="tb-btn tb-toggle" id="sq-nofill-toggle" title="No Fill">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM4 12c0-4.42 3.58-8 8-8 1.85 0 3.55.63 4.9 1.69L5.69 16.9C4.63 15.55 4 13.85 4 12zm8 8c-1.85 0-3.55-.63-4.9-1.69L18.31 7.1C19.37 8.45 20 10.15 20 12c0 4.42-3.58 8-8 8z"/></svg>
+    </button>
+    <button class="tb-btn tb-toggle" id="sq-borderon-toggle" title="Show Stroke">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 5v14H5V5h14m2-2H3v18h18V3z"/></svg>
+    </button>
+  </div>
+
+  <div class="tool-menu tool-menu--poly" id="menu-poly">
+    <input type="checkbox" id="po-nofill" style="display:none">
+    <input type="checkbox" id="po-borderon" style="display:none">
+    <input type="checkbox" id="po-close" style="display:none">
+    <input type="checkbox" id="po-smooth" style="display:none">
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Fill">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+      </span>
+      <input type="color" id="po-fill">
+      <button class="tb-mini" id="po-pick-fill" title="Pick Fill"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19.35 10.04C18.67 7.49 16.25 5.6 13.5 5.6H13c-2.35 0-4.35 1.38-5.33 3.36-1.04 1.33-2.12 3.8-2.12 3.8-.46.85-.75 2.37-.3 3.25.46.89 1.39 1.39 2.25 1.39.55 0 1.05-.22 1.5-.55.38-.28.78-.39 1.15-.39.68 0 1.45.38 2.3 1.09 1.17.97 2.72 1.45 4.3 1.45 2.1 0 4.25-.84 5.75-2.6 1.83-2.14 1.62-5.7.82-8.36zm-4.1 3.21c-.44.22-.84.44-1.25.68v-2.31c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v3.1c-.88-.5-1.78-.97-2.66-1.39L6.5 10.5c.98.5 2.08 1.07 3.2 1.66l.01.01.05.02c.07.04.14.07.21.11.45.23.91.46 1.36.69l1.67.84v-2.1c0-.28.22-.5.5-.5s.5.22.5.5v2.66c.55.15 1.15.22 1.77.22 1.28 0 2.53-.33 3.65-.92l-4.17-2.42z"/></svg></button>
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Stroke">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="9"/></svg>
+      </span>
+      <input type="color" id="po-stroke">
+      <button class="tb-mini" id="po-pick-stroke" title="Pick Stroke"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19.35 10.04C18.67 7.49 16.25 5.6 13.5 5.6H13c-2.35 0-4.35 1.38-5.33 3.36-1.04 1.33-2.12 3.8-2.12 3.8-.46.85-.75 2.37-.3 3.25.46.89 1.39 1.39 2.25 1.39.55 0 1.05-.22 1.5-.55.38-.28.78-.39 1.15-.39.68 0 1.45.38 2.3 1.09 1.17.97 2.72 1.45 4.3 1.45 2.1 0 4.25-.84 5.75-2.6 1.83-2.14 1.62-5.7.82-8.36zm-4.1 3.21c-.44.22-.84.44-1.25.68v-2.31c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v3.1c-.88-.5-1.78-.97-2.66-1.39L6.5 10.5c.98.5 2.08 1.07 3.2 1.66l.01.01.05.02c.07.04.14.07.21.11.45.23.91.46 1.36.69l1.67.84v-2.1c0-.28.22-.5.5-.5s.5.22.5.5v2.66c.55.15 1.15.22 1.77.22 1.28 0 2.53-.33 3.65-.92l-4.17-2.42z"/></svg></button>
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Fill Opacity">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+      </span>
+      <input type="range" id="po-fop" min="0" max="100">
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Stroke Opacity">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+      </span>
+      <input type="range" id="po-sop" min="0" max="100">
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Stroke Width">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="2" y="9" width="20" height="2"/><rect x="2" y="13" width="20" height="4"/></svg>
+      </span>
+      <input type="range" id="po-sw" min="1" max="50">
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Corner Radius">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h10c3.31 0 6-2.69 6-6V4"/></svg>
+      </span>
+      <input type="range" id="po-rx" min="0" max="100">
+    </div>
+
+    <button class="tb-btn tb-toggle" id="po-nofill-toggle" title="No Fill">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM4 12c0-4.42 3.58-8 8-8 1.85 0 3.55.63 4.9 1.69L5.69 16.9C4.63 15.55 4 13.85 4 12zm8 8c-1.85 0-3.55-.63-4.9-1.69L18.31 7.1C19.37 8.45 20 10.15 20 12c0 4.42-3.58 8-8 8z"/></svg>
+    </button>
+    <button class="tb-btn tb-toggle" id="po-borderon-toggle" title="Show Stroke">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 5v14H5V5h14m2-2H3v18h18V3z"/></svg>
+    </button>
+    <button class="tb-btn tb-toggle" id="po-close-toggle" title="Close Path">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2l-5.5 9h11z"/></svg>
+    </button>
+    <button class="tb-btn tb-toggle" id="po-smooth-toggle" title="Smooth">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12c4-8 12 8 20 0"/></svg>
+    </button>
+  </div>
+
+  <div class="tool-menu tool-menu--ref" id="menu-ref">
+    <input type="checkbox" id="rf-on" style="display:none">
+
+    <button class="tb-btn tb-toggle" id="rf-borderon-toggle" title="Show Border">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M4 4h16v16H4V4Zm2 2v12h12V6H6Z"/></svg>
+    </button>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Border">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="9"/></svg>
+      </span>
+      <input type="color" id="rf-border">
+      <button class="tb-mini" id="rf-pick-border" title="Pick Border"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19.35 10.04C18.67 7.49 16.25 5.6 13.5 5.6H13c-2.35 0-4.35 1.38-5.33 3.36-1.04 1.33-2.12 3.8-2.12 3.8-.46.85-.75 2.37-.3 3.25.46.89 1.39 1.39 2.25 1.39.55 0 1.05-.22 1.5-.55.38-.28.78-.39 1.15-.39.68 0 1.45.38 2.3 1.09 1.17.97 2.72 1.45 4.3 1.45 2.1 0 4.25-.84 5.75-2.6 1.83-2.14 1.62-5.7.82-8.36zm-4.1 3.21c-.44.22-.84.44-1.25.68v-2.31c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v3.1c-.88-.5-1.78-.97-2.66-1.39L6.5 10.5c.98.5 2.08 1.07 3.2 1.66l.01.01.05.02c.07.04.14.07.21.11.45.23.91.46 1.36.69l1.67.84v-2.1c0-.28.22-.5.5-.5s.5.22.5.5v2.66c.55.15 1.15.22 1.77.22 1.28 0 2.53-.33 3.65-.92l-4.17-2.42z"/></svg></button>
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Opacity">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+      </span>
+      <input type="range" id="rf-op" min="0" max="100">
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Radius">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h10c3.31 0 6-2.69 6-6V4"/></svg>
+      </span>
+      <input type="range" id="rf-rad" min="0" max="100">
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Border Opacity">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+      </span>
+      <input type="range" id="rf-bop" min="0" max="100">
+    </div>
+
+    <div class="tb-pill">
+      <span class="tb-ico" title="Border Width">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="2" y="9" width="20" height="2"/><rect x="2" y="13" width="20" height="4"/></svg>
+      </span>
+      <input type="range" id="rf-bw" min="1" max="50">
+    </div>
+
+    <button class="tb-btn tb-red" id="rf-reset-crop" title="Reset Crop">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17 15h2v2h-2v-2zm-10-8h2v2H7V7zm12 12h2v2H7c-1.1 0-2-.9-2-2V5h2v14h12zm-8-14h12v2H9V5zm8 4h2v4h-2V9zm-4 0h2v4h-2V9z"/></svg>
+    </button>
+  </div>
+
+</div>
+
+
+
+        </div>
+      </div>
+
+      <div class="app-viewport" id="game-wrapper">
+        <canvas id="sampler-canvas" style="display:none;"></canvas>
+        <div id="img-stack"></div>
+        <div id="ref-layer" style="z-index:15; position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;"></div>
+        <div id="text-layer"></div>
+        <svg id="svg-layer"></svg>
+        <div class="label-overlay" id="overlay"></div>
+        <div id="gizmo-layer"></div>
+
+        <div id="picker-preview" style="display:none; position:fixed; z-index:200000; pointer-events:none; transform:translate(12px, 12px);">
+          <div style="display:flex; align-items:center; gap:8px; background:rgba(0,0,0,0.75); color:#fff; padding:6px 8px; border-radius:8px; font-size:11px; font-family:monospace; box-shadow:0 4px 12px rgba(0,0,0,0.35);">
+            <div id="picker-swatch" style="width:18px; height:18px; border-radius:4px; border:1px solid rgba(255,255,255,0.5); background:#fff;"></div>
+            <div id="picker-hex">#ffffff</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  // Target the new Back View ID instead of the old launcher
+  var launcher = document.getElementById('back-view-root'); 
+  var editor = document.getElementById('editor-container');
+
+  // --- LONG PRESS LOGIC START ---
+  var pressTimer, isEditorActive = false, startX=0, startY=0;
+
+  window.addEventListener('pointerdown', function(e) {
+    if (isEditorActive) return;
+    startX = e.clientX; startY = e.clientY;
+    pressTimer = setTimeout(function() {
+      isEditorActive = true;
+      launcher.style.display = 'none';
+      editor.style.display = 'block';
+      if (navigator.vibrate) navigator.vibrate(50);
+      initEditor();
+    }, 1000);
+  });
+
+  function clearTimer(){ if (pressTimer) clearTimeout(pressTimer); }
+  window.addEventListener('pointerup', clearTimer);
+  window.addEventListener('pointerleave', clearTimer);
+  window.addEventListener('pointermove', function(e) {
+    if (!pressTimer) return;
+    var dx = Math.abs(e.clientX - startX);
+    var dy = Math.abs(e.clientY - startY);
+    if (dx > 10 || dy > 10) clearTimer();
+  });
+  // --- LONG PRESS LOGIC END ---
+
+  function initEditor() {
+
+    // ============================================================
+    // CONFIGURATION: Default Tool Styles
+    // Edit these values to set your preferred defaults.
+    // ============================================================
+    var DEFAULT_STYLES = {
+      point:   { fill:"#FFCA28", fillOp:1.0, border:"#000000", borderOp:1.0, size:30, borderW:3, rad:50, showNum:false, isQuiz:true },
+      text:    { fill:"#4f4f4f", op:1.0, size:50, rot:0, bgOn:false, bg:"#FFCA28", bgOp:1.0, pad:10, isQuiz:false },
+      draw:    { fill:"#FFCA28", fillOp:1.0, noFill:true, stroke:"#FFCA28", strokeOp:1.0, strokeW:6, rx:0, smooth:true, showStroke:true, connect:false, isQuiz:false },
+      line:    { fill:"#ffffff", fillOp:1.0, noFill:true, stroke:"#FFCA28", strokeOp:1.0, strokeW:6, rx:0, smooth:true, showStroke:true, connect:false, isQuiz:false },
+      square:  { fill:"#FFCA28", fillOp:1.0, noFill:false, stroke:"#000000", strokeOp:1.0, strokeW:2, rx:5, smooth:false, showStroke:true, connect:true, isQuiz:true },
+      polygon: { fill:"#FFCA28", fillOp:1.0, noFill:false, stroke:"#000000", strokeOp:1.0, strokeW:2, rx:5, smooth:false, showStroke:true, connect:true, isQuiz:true },
+      ref:     { opacity:1.0, radius:5, borderOn:false, border:"#FFCA28", borderOp:1.0, borderW:2, isQuiz:false }
+    };
+
+    var hexToRgb = (h) => { var r=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(h); return r?{r:parseInt(r[1],16),g:parseInt(r[2],16),b:parseInt(r[3],16)}:{r:0,g:0,b:0}; };
+    var rgbToHex = (r, g, b) => "#" + ((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+    var hexWithOpacity = (h, o) => { if(!h||h==='none') return 'transparent'; var r=hexToRgb(h); return `rgba(${r.r},${r.g},${r.b},${o})`; };
+
+    var wrapper = document.getElementById('game-wrapper'),
+        imgStack = document.getElementById('img-stack'),
+        refLayer = document.getElementById('ref-layer'),
+        overlay = document.getElementById('overlay'),
+        svgLayer = document.getElementById('svg-layer'),
+        textLayer = document.getElementById('text-layer'),
+        gizmoLayer = document.getElementById('gizmo-layer'),
+        canvas = document.getElementById('sampler-canvas');
+
+    var pickerPreview = document.getElementById('picker-preview');
+    var pickerSwatch = document.getElementById('picker-swatch');
+    var pickerHex = document.getElementById('picker-hex');
+
+    // Buttons
+    var btns = {
+      view: document.getElementById('btn-view'),
+      sel: document.getElementById('btn-sel'),
+      pt: document.getElementById('btn-pt'),
+      dr: document.getElementById('btn-dr'),
+      ln: document.getElementById('btn-ln'),
+      sq: document.getElementById('btn-sq'),
+      poly: document.getElementById('btn-poly'),
+      txt: document.getElementById('btn-txt'),
+      del: document.getElementById('btn-del'),
+      dup: document.getElementById('btn-dup'),
+      crop: document.getElementById('btn-crop'),
+      editTxt: document.getElementById('btn-edit-text'),
+      quizType: document.getElementById('btn-type'),
+      save: document.getElementById('btn-save')
+    };
+
+    // Menus
+    var menuByTool = {
+      point: document.getElementById('menu-point'),
+      text: document.getElementById('menu-text'),
+      draw: document.getElementById('menu-draw'),
+      line: document.getElementById('menu-line'),
+      square: document.getElementById('menu-square'),
+      polygon: document.getElementById('menu-poly'),
+      ref: document.getElementById('menu-ref')
+    };
+    function hideAllMenus(){
+      Object.values(menuByTool).forEach(m => { if(m) m.style.display = 'none'; });
+      _ctxOpen = false;
+    }
+
+    // ============================================================
+    // TOOLBAR EVENT SHIELD
+    // ============================================================
+    (function(){
+      var shieldRoot = document.querySelector('.sticky-wrapper') || document.querySelector('.app-toolbar');
+      if(!shieldRoot) return;
+      function swallow(e){ e.stopPropagation(); }
+      ['pointerdown','pointermove','pointerup','pointercancel','wheel','touchstart','touchmove','touchend','mousedown','mousemove','mouseup'].forEach(ev=>{
+        shieldRoot.addEventListener(ev, swallow, true);
+      });
+      ['pointerenter','pointerleave','pointerover','pointerout'].forEach(ev=>{
+        shieldRoot.addEventListener(ev, swallow, true);
+      });
+    })();
+
+
+    // ============================================================
+    // PER-TOOL PRESETS
+    // ============================================================
+    var toolStyle = JSON.parse(JSON.stringify(DEFAULT_STYLES));
+
+    // ============================================================
+    // LOAD SAVE DATA
+    // ============================================================
+    var editorRoot = document.getElementById('editor-container') || document;
+    var saveEl = editorRoot.querySelector('#d-savecode') || document.getElementById('d-savecode');
+    var imgEl  = editorRoot.querySelector('#d-image') || document.getElementById('d-image');
+    var objEl  = editorRoot.querySelector('#d-objectimages') || document.getElementById('d-objectimages');
+
+    var rawSave = (saveEl && saveEl.innerText ? saveEl.innerText : "").replace(/^coords:/, '').trim();
+
+    var loaded = {points:[], occlusions:[], texts:[], refs:[]};
+    if (rawSave) { try { loaded = JSON.parse(rawSave); } catch(e){} }
+
+    var pts = loaded.points || [],
+        occlusions = loaded.occlusions || [],
+        texts = loaded.texts || [],
+        refs = loaded.refs || [];
+
+    function applyDefaults(){
+      pts.forEach(p=>{
+        if(p.isQuiz===undefined) p.isQuiz = toolStyle.point.isQuiz;
+        if(p.size===undefined) p.size = toolStyle.point.size;
+        if(p.borderW===undefined) p.borderW = toolStyle.point.borderW;
+        if(p.borderRad===undefined) p.borderRad = toolStyle.point.rad;
+        if(p.showNum===undefined) p.showNum = toolStyle.point.showNum;
+        if(p.fillOpacity===undefined) p.fillOpacity = toolStyle.point.fillOp;
+        if(p.strokeOpacity===undefined) p.strokeOpacity = toolStyle.point.borderOp;
+        if(p.color===undefined) p.color = toolStyle.point.fill;
+        if(p.borderColor===undefined) p.borderColor = toolStyle.point.border;
+      });
+      texts.forEach(t=>{
+        if(t.isQuiz===undefined) t.isQuiz = toolStyle.text.isQuiz;
+        if(t.size===undefined) t.size = toolStyle.text.size;
+        if(t.rot===undefined) t.rot = toolStyle.text.rot;
+        if(t.bgOn===undefined) t.bgOn = toolStyle.text.bgOn;
+        if(t.bgRad===undefined) t.bgRad = toolStyle.text.pad;
+        if(t.bgOpacity===undefined) t.bgOpacity = toolStyle.text.bgOp;
+        if(t.bgColor===undefined) t.bgColor = toolStyle.text.bg;
+        if(t.color===undefined) t.color = toolStyle.text.fill;
+        if(t.opacity===undefined) t.opacity = toolStyle.text.op;
+        if(t.dotX===undefined) t.dotX = 0;
+        if(t.dotY===undefined) t.dotY = 0;
+      });
+      occlusions.forEach(o=>{
+        if(o.isQuiz===undefined) o.isQuiz = true;
+        if(o.color===undefined) o.color = "#ffffff";
+        if(o.fillOpacity===undefined) o.fillOpacity = 1.0;
+        if(o.noFill===undefined) o.noFill = false;
+        if(o.strokeColor===undefined) o.strokeColor = "#000000";
+        if(o.strokeWidth===undefined) o.strokeWidth = 6;
+        if(o.strokeOpacity===undefined) o.strokeOpacity = 1.0;
+        if(o.rx===undefined) o.rx = 0;
+        if(o.connectEnds===undefined) o.connectEnds = true;
+        if(o.smooth===undefined) o.smooth = false;
+      });
+      refs.forEach(r=>{
+        if(r.isQuiz===undefined) r.isQuiz = true;
+        if(r.w===undefined) r.w = 25;
+        if(r.rot===undefined) r.rot = 0;
+        if(r.opacity===undefined) r.opacity = toolStyle.ref.opacity;
+        if(r.radius===undefined) r.radius = toolStyle.ref.radius;
+        if(r.borderOn===undefined) r.borderOn = toolStyle.ref.borderOn;
+        if(r.borderW===undefined) r.borderW = toolStyle.ref.borderW;
+        if(r.borderOp===undefined) r.borderOp = toolStyle.ref.borderOp;
+        if(r.borderC===undefined) r.borderC = toolStyle.ref.border;
+        if(!r.crop) r.crop = {t:0,r:0,b:0,l:0};
+        if(r.dotX===undefined) r.dotX = 0;
+        if(r.dotY===undefined) r.dotY = 0;
+      });
+    }
+    applyDefaults();
+
+    // ============================================================
+    // LOAD BACKGROUND & OBJECTS
+    // ============================================================
+    imgStack.innerHTML = "";
+    var bgHtmlOnly = (imgEl && imgEl.innerHTML) ? imgEl.innerHTML : "";
+    var bgLoader = document.createElement('div');
+    bgLoader.innerHTML = bgHtmlOnly;
+    bgLoader.querySelectorAll('img').forEach(img => {
+      var newImg = new Image();
+      newImg.src = img.src;
+      newImg.style.width = '100%';
+      newImg.crossOrigin = "anonymous";
+      imgStack.appendChild(newImg);
+    });
+
+    var objHtml = (objEl && objEl.innerHTML) ? objEl.innerHTML : "";
+    if (objHtml) {
+      var objTmp = document.createElement('div');
+      objTmp.innerHTML = objHtml;
+      objTmp.querySelectorAll('img').forEach(imgNode => {
+        if(!imgNode || !imgNode.src) return;
+        var isDuplicate = refs.some(r => r && r.src === imgNode.src);
+        if(!isDuplicate) {
+          refs.push({
+            src: imgNode.src, x:50, y:50, w:25, rot:0, opacity:1,
+            isQuiz:true, radius:0,
+            borderOn:false, borderW:2, borderOp:1, borderC:'#000000',
+            crop:{t:0,r:0,b:0,l:0},
+            dotX:0, dotY:0
+          });
+        }
+      });
+    }
+
+    // ============================================================
+    // STATE
+    // ============================================================
+    var mode = 'point';
+    var selection = { type:null, index:-1 };
+    var drag = null;
+    var tempPoly = [];
+    var tmpSvg = null;
+    var isCropMode = false;
+
+    // STYLUS DETECTION STATE
+    var _hasStylus = false;
+
+    // Picker mode 
+    var pickerMode = null;
+    var pickerRAF = 0;
+
+    function getCoords(e){
+      var r = wrapper.getBoundingClientRect();
+      var cx = (e.touches ? e.touches[0].clientX : e.clientX);
+      var cy = (e.touches ? e.touches[0].clientY : e.clientY);
+      return { x:((cx-r.left)/r.width)*100, y:((cy-r.top)/r.height)*100, pxX:cx-r.left, pxY:cy-r.top };
+    }
+
+    function getPathData(points, isClosed, isSmooth, radius, W, H){
+      var p = points.map(pp => ({x:(pp.x/100)*W, y:(pp.y/100)*H}));
+      if(p.length<2) return "";
+      var d="";
+      if (isSmooth) {
+        d = "M "+p[0].x.toFixed(1)+" "+p[0].y.toFixed(1);
+        var loop=isClosed?p.concat([p[0],p[1]]):p;
+        var end=isClosed?p.length:p.length-1;
+        for(var i=0;i<end;i++) {
+          var p0=loop[i===0?(isClosed?loop.length-3:0):i-1], p1=loop[i], p2=loop[i+1], p3=loop[i+2]||p2;
+          var cp1x=p1.x+(p2.x-p0.x)/6, cp1y=p1.y+(p2.y-p0.y)/6, cp2x=p2.x-(p3.x-p1.x)/6, cp2y=p2.y-(p3.y-p1.y)/6;
+          d+=` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)} ${cp2x.toFixed(1)} ${cp2y.toFixed(1)} ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+        }
+      } else if (radius>0) {
+        var len=p.length;
+        for(var i=0;i<len;i++){
+          if(!isClosed && (i===0||i===len-1)){
+            d+=(i===0?"M ":"L ")+p[i].x.toFixed(1)+" "+p[i].y.toFixed(1);
+            continue;
+          }
+          var curr=p[i], prev=p[(i-1+len)%len], next=p[(i+1)%len];
+          var v1={x:prev.x-curr.x, y:prev.y-curr.y}, v2={x:next.x-curr.x, y:next.y-curr.y};
+          var l1=Math.sqrt(v1.x**2+v1.y**2), l2=Math.sqrt(v2.x**2+v2.y**2);
+          var r=Math.min(radius, l1/2, l2/2);
+          var s={x:curr.x+(v1.x/l1)*r, y:curr.y+(v1.y/l1)*r}, e={x:curr.x+(v2.x/l2)*r, y:curr.y+(v2.y/l2)*r};
+          if(i===0&&isClosed) d+=`M ${s.x.toFixed(1)} ${s.y.toFixed(1)} `;
+          else if(i===0) d+=`M ${curr.x.toFixed(1)} ${curr.y.toFixed(1)} `;
+          else d+=`L ${s.x.toFixed(1)} ${s.y.toFixed(1)} `;
+          d+=`Q ${curr.x.toFixed(1)} ${curr.y.toFixed(1)} ${e.x.toFixed(1)} ${e.y.toFixed(1)} `;
+        }
+        if(isClosed) d+="Z";
+      } else {
+        d="M "+p[0].x.toFixed(1)+" "+p[0].y.toFixed(1);
+        for(var j=1;j<p.length;j++) d+=" L "+p[j].x.toFixed(1)+" "+p[j].y.toFixed(1);
+        if(isClosed) d+=" Z";
+      }
+      return d;
+    }
+
+    function normalizeShape(ptsArr, type, toolKey, forceConnect){
+      if(ptsArr.length===0) return null;
+      var st = toolStyle[toolKey] || toolStyle.draw;
+      var minX=Infinity, maxX=-Infinity, minY=Infinity, maxY=-Infinity;
+      ptsArr.forEach(p=>{ if(p.x<minX)minX=p.x; if(p.x>maxX)maxX=p.x; if(p.y<minY)minY=p.y; if(p.y>maxY)maxY=p.y; });
+      var w=maxX-minX, h=maxY-minY;
+      if(w<0.1)w=1; if(h<0.1)h=1;
+      var strokeOn = !!st.showStroke;
+      var sStroke = strokeOn ? st.stroke : 'none';
+      return {
+        type:type, x:minX, y:minY, w:w, h:h,
+        points:ptsArr.map(p=>({x:p.x-minX, y:p.y-minY})),
+        rot:0,
+        color:st.fill, fillOpacity:st.fillOp, noFill:!!st.noFill,
+        strokeColor:sStroke, strokeWidth:st.strokeW, strokeOpacity:st.strokeOp, rx:st.rx,
+        connectEnds:(forceConnect!==undefined ? forceConnect : !!st.connect),
+        smooth:!!st.smooth,
+        isQuiz: (st.isQuiz !== false)
+      };
+    }
+
+    // Picker
+    function sampleColor(e){
+      var imgs=imgStack.querySelectorAll('img');
+      for(var i=0;i<imgs.length;i++){
+        var im=imgs[i], r=im.getBoundingClientRect();
+        if(e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom){
+          var nx=(e.clientX-r.left)/r.width*im.naturalWidth;
+          var ny=(e.clientY-r.top)/r.height*im.naturalHeight;
+          canvas.width=1; canvas.height=1;
+          var cx=canvas.getContext('2d');
+          try{
+            cx.clearRect(0,0,1,1);
+            cx.drawImage(im,nx,ny,1,1,0,0,1,1);
+            var p=cx.getImageData(0,0,1,1).data;
+            return rgbToHex(p[0],p[1],p[2]);
+          } catch(err){ return null; }
+        }
+      }
+      return null;
+    }
+    function setPickerPreview(x, y, hex){
+      if(!pickerPreview) return;
+      pickerPreview.style.display = 'block';
+      pickerPreview.style.left = x + 'px';
+      pickerPreview.style.top = y + 'px';
+      pickerSwatch.style.background = hex || 'transparent';
+      pickerHex.textContent = hex || '';
+    }
+    function hidePickerPreview(){
+      if(pickerPreview) pickerPreview.style.display = 'none';
+    }
+    function startPicker(toolKey, target){
+      pickerMode = { tool: toolKey, target: target };
+      wrapper.style.cursor = 'crosshair';
+      hideAllMenus();
+      render();
+    }
+    function applyPickedColor(hex){
+      if(!pickerMode || !hex) return;
+      var toolKey = pickerMode.tool;
+      var target = pickerMode.target;
+      if (selection.index > -1) {
+        var it = getSelectedItem();
+        if (it) {
+          if (selection.type === 'point') {
+            if (target === 'fill') it.color = hex;
+            if (target === 'border') it.borderColor = hex;
+          } else if (selection.type === 'text') {
+            if (target === 'fill') it.color = hex;
+            if (target === 'bg') it.bgColor = hex;
+          } else if (selection.type === 'occ') {
+            if (target === 'fill') it.color = hex;
+            if (target === 'stroke') it.strokeColor = hex;
+          } else if (selection.type === 'ref') {
+            if (target === 'border') it.borderC = hex;
+          }
+        }
+      } else {
+        var st = toolStyle[toolKey];
+        if (st) {
+          if (target === 'fill') st.fill = hex;
+          if (target === 'stroke') st.stroke = hex;
+          if (target === 'border') st.border = hex;
+          if (target === 'bg') st.bg = hex;
+        }
+      }
+      pickerMode = null;
+      wrapper.style.cursor = '';
+      hidePickerPreview();
+      syncMenusFromState();
+      render();
+    }
+
+    function getSelectedItem(){
+      if (selection.index < 0) return null;
+      if (selection.type === 'occ') return occlusions[selection.index];
+      if (selection.type === 'text') return texts[selection.index];
+      if (selection.type === 'point') return pts[selection.index];
+      if (selection.type === 'ref') return refs[selection.index];
+      return null;
+    }
+
+    // Menu helpers
+    function valToPct(v){ return Math.max(0, Math.min(100, Math.round((v||0)*100))); }
+    function pctToVal(p){ return Math.max(0, Math.min(1, (p||0)/100)); }
+    function setInp(id, val){
+      var el = document.getElementById(id);
+      if(!el) return;
+      if (el.type === 'checkbox') el.checked = !!val;
+      else el.value = val;
+    }
+
+    function syncMenusFromState(){
+      // POINT
+      if (selection.type === 'point' && selection.index > -1) {
+        var p = pts[selection.index];
+        setInp('pt-fill', p.color || toolStyle.point.fill);
+        setInp('pt-border', p.borderColor || toolStyle.point.border);
+        setInp('pt-op', valToPct(p.fillOpacity!==undefined?p.fillOpacity:toolStyle.point.fillOp));
+        setInp('pt-size', p.size!==undefined?p.size:toolStyle.point.size);
+        setInp('pt-bw', p.borderW!==undefined?p.borderW:toolStyle.point.borderW);
+        setInp('pt-rad', p.borderRad!==undefined?p.borderRad:toolStyle.point.rad);
+        setInp('pt-num', p.showNum!==false);
+      } else {
+        setInp('pt-fill', toolStyle.point.fill);
+        setInp('pt-border', toolStyle.point.border);
+        setInp('pt-op', valToPct(toolStyle.point.fillOp));
+        setInp('pt-size', toolStyle.point.size);
+        setInp('pt-bw', toolStyle.point.borderW);
+        setInp('pt-rad', toolStyle.point.rad);
+        setInp('pt-num', toolStyle.point.showNum);
+      }
+      // TEXT
+      if (selection.type === 'text' && selection.index > -1) {
+        var t = texts[selection.index];
+        setInp('tx-fill', t.color || toolStyle.text.fill);
+        setInp('tx-bg', t.bgColor || toolStyle.text.bg);
+        setInp('tx-op', valToPct(t.opacity!==undefined?t.opacity:toolStyle.text.op));
+        setInp('tx-size', t.size!==undefined?t.size:toolStyle.text.size);
+        setInp('tx-bgop', valToPct(t.bgOpacity!==undefined?t.bgOpacity:toolStyle.text.bgOp));
+        setInp('tx-pad', t.bgRad!==undefined?t.bgRad:toolStyle.text.pad);
+        setInp('tx-bgOn', !!t.bgOn);
+      } else {
+        setInp('tx-fill', toolStyle.text.fill);
+        setInp('tx-bg', toolStyle.text.bg);
+        setInp('tx-op', valToPct(toolStyle.text.op));
+        setInp('tx-size', toolStyle.text.size);
+        setInp('tx-bgop', valToPct(toolStyle.text.bgOp));
+        setInp('tx-pad', toolStyle.text.pad);
+        setInp('tx-bgOn', !!toolStyle.text.bgOn);
+      }
+      // SHAPE menus
+      function syncShapeMenu(toolKey, ids, st){
+        var source = st;
+        if (selection.type === 'occ' && selection.index > -1) {
+          var o = occlusions[selection.index];
+          source = {
+            fill: o.color || st.fill,
+            fillOp: (o.fillOpacity!==undefined?o.fillOpacity:st.fillOp),
+            noFill: !!o.noFill,
+            stroke: (o.strokeColor && o.strokeColor!=='none') ? o.strokeColor : st.stroke,
+            strokeOp: (o.strokeOpacity!==undefined?o.strokeOpacity:st.strokeOp),
+            strokeW: (o.strokeWidth!==undefined?o.strokeWidth:st.strokeW),
+            rx: (o.rx!==undefined?o.rx:st.rx),
+            showStroke: (o.strokeColor!=='none'),
+            smooth: !!o.smooth,
+            connect: !!o.connectEnds
+          };
+        }
+        setInp(ids.fill, source.fill);
+        setInp(ids.stroke, source.stroke);
+        setInp(ids.fop, valToPct(source.fillOp));
+        setInp(ids.sop, valToPct(source.strokeOp));
+        setInp(ids.sw, source.strokeW);
+        if(ids.rx) setInp(ids.rx, source.rx);
+        if(ids.nofill) setInp(ids.nofill, !!source.noFill);
+        if(ids.borderon) setInp(ids.borderon, !!source.showStroke);
+        if(ids.smoothSel) setInp(ids.smoothSel, source.smooth ? '1':'0');
+        if(ids.smoothChk) setInp(ids.smoothChk, !!source.smooth);
+        if(ids.close) setInp(ids.close, !!source.connect);
+      }
+
+      syncShapeMenu('draw', {
+        fill:'dr-fill', stroke:'dr-stroke', fop:'dr-fop', sop:'dr-sop', sw:'dr-sw',
+        nofill:'dr-nofill', borderon:'dr-borderon', smoothChk:'dr-smooth'
+      }, toolStyle.draw);
+
+      syncShapeMenu('line', {
+        fill:'ln-fill', stroke:'ln-stroke', fop:'ln-fop', sop:'ln-sop', sw:'ln-sw', rx:'ln-rx',
+        nofill:'ln-nofill', borderon:'ln-borderon', smoothChk:'ln-smooth'
+      }, toolStyle.line);
+
+      syncShapeMenu('square', {
+        fill:'sq-fill', stroke:'sq-stroke', fop:'sq-fop', sop:'sq-sop', sw:'sq-sw', rx:'sq-rx',
+        nofill:'sq-nofill', borderon:'sq-borderon'
+      }, toolStyle.square);
+
+      syncShapeMenu('polygon', {
+        fill:'po-fill', stroke:'po-stroke', fop:'po-fop', sop:'po-sop', sw:'po-sw', rx:'po-rx',
+        nofill:'po-nofill', borderon:'po-borderon', smoothChk:'po-smooth', close:'po-close'
+      }, toolStyle.polygon);
+
+      // REF
+      if (selection.type === 'ref' && selection.index > -1) {
+        var r = refs[selection.index];
+        setInp('rf-op', valToPct(r.opacity!==undefined?r.opacity:toolStyle.ref.opacity));
+        setInp('rf-rad', r.radius!==undefined?r.radius:toolStyle.ref.radius);
+        setInp('rf-border', r.borderC || toolStyle.ref.border);
+        setInp('rf-bop', valToPct(r.borderOp!==undefined?r.borderOp:toolStyle.ref.borderOp));
+        setInp('rf-bw', r.borderW!==undefined?r.borderW:toolStyle.ref.borderW);
+        setInp('rf-on', !!r.borderOn);
+      } else {
+        setInp('rf-op', valToPct(toolStyle.ref.opacity));
+        setInp('rf-rad', toolStyle.ref.radius);
+        setInp('rf-border', toolStyle.ref.border);
+        setInp('rf-bop', valToPct(toolStyle.ref.borderOp));
+        setInp('rf-bw', toolStyle.ref.borderW);
+        setInp('rf-on', !!toolStyle.ref.borderOn);
+      }
+    }
+
+    function applyMenuChange(toolKey, field, rawVal){
+      if (selection.index > -1) {
+        var it = getSelectedItem();
+        if (!it) return;
+
+        if (selection.type === 'point') {
+          if (field==='fill') it.color = rawVal;
+          if (field==='border') it.borderColor = rawVal;
+          if (field==='op') it.fillOpacity = pctToVal(rawVal);
+          if (field==='size') it.size = +rawVal;
+          if (field==='bw') it.borderW = +rawVal;
+          if (field==='rad') it.borderRad = +rawVal;
+          if (field==='num') it.showNum = !!rawVal;
+        }
+        if (selection.type === 'text') {
+          if (field==='fill') it.color = rawVal;
+          if (field==='bg') it.bgColor = rawVal;
+          if (field==='op') it.opacity = pctToVal(rawVal);
+          if (field==='size') it.size = +rawVal;
+          if (field==='bgop') it.bgOpacity = pctToVal(rawVal);
+          if (field==='pad') it.bgRad = +rawVal;
+          if (field==='bgOn') it.bgOn = !!rawVal;
+        }
+        if (selection.type === 'occ') {
+          if (field==='fill') it.color = rawVal;
+          if (field==='fop') it.fillOpacity = pctToVal(rawVal);
+          if (field==='nofill') it.noFill = !!rawVal;
+          if (field==='stroke') it.strokeColor = rawVal;
+          if (field==='sop') it.strokeOpacity = pctToVal(rawVal);
+          if (field==='sw') it.strokeWidth = +rawVal;
+          if (field==='rx') it.rx = +rawVal;
+          if (field==='smooth') it.smooth = !!rawVal;
+          if (field==='connect') it.connectEnds = !!rawVal;
+          if (field==='borderon') it.strokeColor = rawVal ? (it.strokeColor && it.strokeColor!=='none' ? it.strokeColor : (toolStyle[toolKey].stroke||'#000')) : 'none';
+        }
+        if (selection.type === 'ref') {
+          if (field==='op') it.opacity = pctToVal(rawVal);
+          if (field==='rad') it.radius = +rawVal;
+          if (field==='border') it.borderC = rawVal;
+          if (field==='bop') it.borderOp = pctToVal(rawVal);
+          if (field==='bw') it.borderW = +rawVal;
+          if (field==='on') it.borderOn = (rawVal === '1' || rawVal === true);
+        }
+
+      } else {
+        var st = toolStyle[toolKey];
+        if (!st) return;
+        if (toolKey === 'point') {
+          if (field==='fill') st.fill = rawVal;
+          if (field==='border') st.border = rawVal;
+          if (field==='op') st.fillOp = pctToVal(rawVal);
+          if (field==='size') st.size = +rawVal;
+          if (field==='bw') st.borderW = +rawVal;
+          if (field==='rad') st.rad = +rawVal;
+          if (field==='num') st.showNum = !!rawVal;
+        }
+        if (toolKey === 'text') {
+          if (field==='fill') st.fill = rawVal;
+          if (field==='bg') st.bg = rawVal;
+          if (field==='op') st.op = pctToVal(rawVal);
+          if (field==='size') st.size = +rawVal;
+          if (field==='bgop') st.bgOp = pctToVal(rawVal);
+          if (field==='pad') st.pad = +rawVal;
+          if (field==='bgOn') st.bgOn = !!rawVal;
+        }
+        if (toolKey === 'draw' || toolKey === 'line' || toolKey === 'square' || toolKey === 'polygon') {
+          if (field==='fill') st.fill = rawVal;
+          if (field==='fop') st.fillOp = pctToVal(rawVal);
+          if (field==='nofill') st.noFill = !!rawVal;
+          if (field==='stroke') st.stroke = rawVal;
+          if (field==='sop') st.strokeOp = pctToVal(rawVal);
+          if (field==='sw') st.strokeW = +rawVal;
+          if (field==='rx') st.rx = +rawVal;
+          if (field==='smooth') st.smooth = !!rawVal;
+          if (field==='connect') st.connect = !!rawVal;
+          if (field==='borderon') st.showStroke = !!rawVal;
+        }
+        if (toolKey === 'ref') {
+          if (field==='op') st.opacity = pctToVal(rawVal);
+          if (field==='rad') st.radius = +rawVal;
+          if (field==='border') st.border = rawVal;
+          if (field==='bop') st.borderOp = pctToVal(rawVal);
+          if (field==='bw') st.borderW = +rawVal;
+          if (field==='on') st.borderOn = (rawVal === '1' || rawVal === true);
+        }
+      }
+      syncMenusFromState();
+      render();
+    }
+
+    // UI Updates
+    function updateUI(){
+      Object.values(btns).forEach(b=>b&&b.classList.remove('active'));
+      var btnMap = {
+        view: btns.view, select: btns.sel, point: btns.pt, draw: btns.dr,
+        line: btns.ln, square: btns.sq, polygon: btns.poly, text: btns.txt, delete: btns.del
+      };
+      if(btnMap[mode]) btnMap[mode].classList.add('active');
+      wrapper.style.touchAction = (mode === 'view') ? 'manipulation' : 'none';
+      if(selection.index>-1 && selection.type==='ref') {
+        btns.crop.style.display = 'flex';
+        if(isCropMode) btns.crop.classList.add('active');
+      } else {
+        btns.crop.style.display = 'none';
+        isCropMode = false;
+      }
+      var it = getSelectedItem();
+      var qState = it ? (it.isQuiz !== false) : (toolStyle[mode] ? (toolStyle[mode].isQuiz !== false) : true);
+      btns.quizType.classList.toggle('active', qState);
+      syncMenusFromState();
+    }
+
+    function setMode(newMode){
+      if (mode !== newMode) {
+        mode = newMode;
+        hideAllMenus();
+      }
+      render();
+    }
+
+    var _ctxOpen = false;
+    var _ctxUserHidden = false;
+    var _ctxSelSig = "";
+    var _ctxAuto = false;
+    var _ctxLock = false;
+
+    function showMenuFor(key, isAuto){
+      hideAllMenus();
+      var m = menuByTool[key];
+      if (m) {
+        m.style.display = 'flex';
+        _ctxOpen = true;
+        _ctxAuto = !!isAuto;
+      }
+    }
+
+    function onToolButton(toolKey){
+      if (mode === toolKey) {
+        if (_ctxOpen) {
+          hideAllMenus();
+          _ctxOpen = false;
+          _ctxAuto = false;
+          _ctxUserHidden = true;
+          _ctxLock = false; 
+        } else {
+          _ctxUserHidden = false;
+          showMenuFor(toolKey, false); 
+          _ctxLock = true; 
+        }
+        return;
+      }
+      hideAllMenus();
+      _ctxOpen = false;
+      _ctxAuto = false;
+      _ctxUserHidden = false;
+      _ctxLock = false; 
+      setMode(toolKey);
+    }
+
+    // Render Logic
+    function renderGizmo(W,H,k){
+      var it = getSelectedItem();
+      if(!it) return;
+      var g=document.createElement('div'); g.className='gizmo-box'; var gw,gh,gx,gy;
+
+      if(selection.type==='occ'){
+        gw=it.w/100*W; gh=it.h/100*H; gx=it.x/100*W+gw/2; gy=it.y/100*H+gh/2;
+        if(it.points) it.points.forEach((p,i)=>{
+          var v=document.createElement('div'); v.className='gizmo-vertex';
+          v.style.left=p.x/it.w*100+'%'; v.style.top=p.y/it.h*100+'%';
+          v.style.width=(14*k)+'px'; v.style.height=(14*k)+'px';
+          v.setAttribute('data-vertex-idx',i); g.appendChild(v);
+        });
+      } else if(selection.type==='ref'){
+        gw=it.w/100*W;
+        var el=refLayer.querySelector(`[data-idx="${selection.index}"]`);
+        gh=el?el.offsetHeight:50;
+        gx=it.x/100*W; gy=it.y/100*H;
+        if(it.isQuiz) {
+          var dotH = document.createElement('div');
+          dotH.className='gizmo-handle dot-mover';
+          dotH.style.cssText = `left:${50+(it.dotX||0)}%; top:${50+(it.dotY||0)}%; background:#f1c40f; border:2px solid #fff; position:absolute; width:16px; height:16px; border-radius:50%; pointer-events:auto; cursor:move; z-index:110; transform:translate(-50%,-50%);`;
+          dotH.setAttribute('data-handle','move-dot');
+          g.appendChild(dotH);
+        }
+      } else if(selection.type==='text'){
+        var elT=textLayer.querySelector(`[data-idx="${selection.index}"]`); if(!elT) return;
+        gw=elT.offsetWidth+10; gh=elT.offsetHeight+10; gx=it.x/100*W; gy=it.y/100*H;
+        if(it.isQuiz) {
+          var dotH = document.createElement('div');
+          dotH.className='gizmo-handle dot-mover';
+          dotH.style.cssText = `left:${50+(it.dotX||0)}%; top:${50+(it.dotY||0)}%; background:#e67e22; border:2px solid #fff; position:absolute; width:14px; height:14px; transform:translate(-50%,-50%) rotate(45deg); pointer-events:auto; cursor:move; z-index:110;`;
+          dotH.setAttribute('data-handle','move-dot');
+          g.appendChild(dotH);
+        }
+      } else if(selection.type==='point'){
+        var sz=(it.size||24)*k;
+        gw=sz; gh=sz; gx=it.x/100*W; gy=it.y/100*H;
+      }
+      g.style.width=gw+'px'; g.style.height=gh+'px';
+      g.style.left=gx/W*100+'%'; g.style.top=gy/H*100+'%';
+      g.style.transform=`translate(-50%,-50%) rotate(${it.rot||0}deg)`;
+
+      ['move','resize br','rotate tr'].forEach(c=>{
+        var h=document.createElement('div'); h.className='gizmo-handle '+c;
+        h.setAttribute('data-handle',c.split(' ')[0]);
+        var hSize = (c.includes('move') ? 20 : 16) * k;
+        h.style.width = hSize + 'px'; h.style.height = hSize + 'px';
+        if(c.includes('move')) h.style.borderRadius=(4*k)+'px';
+        g.appendChild(h);
+      });
+      gizmoLayer.appendChild(g);
+    }
+
+    function renderCropGizmo(W,H,k){
+      var it=refs[selection.index]; if(!it) return;
+      var c = it.crop || {t:0,r:0,b:0,l:0};
+      var gw=it.w/100*W;
+      var el=refLayer.querySelector(`[data-idx="${selection.index}"]`);
+      var gh=el?el.offsetHeight:50;
+      var gx=it.x/100*W;
+      var gy=it.y/100*H;
+      var g=document.createElement('div'); g.className='gizmo-box';
+      g.style.width=gw+'px'; g.style.height=gh+'px';
+      g.style.left=gx/W*100+'%'; g.style.top=gy/H*100+'%';
+      g.style.transform=`translate(-50%,-50%) rotate(${it.rot||0}deg)`;
+      g.style.border='none';
+      var cropBox = document.createElement('div');
+      cropBox.style.position='absolute';
+      cropBox.style.top = c.t+'%'; cropBox.style.bottom = c.b+'%';
+      cropBox.style.left = c.l+'%'; cropBox.style.right = c.r+'%';
+      cropBox.style.border = '2px dashed #3498db';
+      cropBox.style.boxShadow = '0 0 0 9999px rgba(0,0,0,0.5)';
+      cropBox.style.pointerEvents='none';
+      g.appendChild(cropBox);
+
+      function makeH(type){
+        var h=document.createElement('div'); h.className='gizmo-handle crop-handle';
+        h.setAttribute('data-crop-handle', type);
+        var hSize = 16 * k;
+        h.style.width=hSize+'px'; h.style.height=hSize+'px';
+        h.style.background='#3498db';
+        h.style.position='absolute';
+        h.style.transform='translate(-50%,-50%)';
+        if(type==='t') { h.style.top=c.t+'%'; h.style.left='50%'; h.style.cursor='ns-resize'; }
+        if(type==='b') { h.style.top=(100-c.b)+'%'; h.style.left='50%'; h.style.cursor='ns-resize'; }
+        if(type==='l') { h.style.left=c.l+'%'; h.style.top='50%'; h.style.cursor='ew-resize'; }
+        if(type==='r') { h.style.left=(100-c.r)+'%'; h.style.top='50%'; h.style.cursor='ew-resize'; }
+        if(type==='tl') { h.style.top=c.t+'%'; h.style.left=c.l+'%'; h.style.cursor='nwse-resize'; }
+        if(type==='tr') { h.style.top=c.t+'%'; h.style.left=(100-c.r)+'%'; h.style.cursor='nesw-resize'; }
+        if(type==='bl') { h.style.top=(100-c.b)+'%'; h.style.left=c.l+'%'; h.style.cursor='nesw-resize'; }
+        if(type==='br') { h.style.top=(100-c.b)+'%'; h.style.left=(100-c.r)+'%'; h.style.cursor='nwse-resize'; }
+        g.appendChild(h);
+      }
+      ['t','r','b','l','tl','tr','bl','br'].forEach(makeH);
+      gizmoLayer.appendChild(g);
+    }
+
+    function render(){
+      svgLayer.innerHTML="";
+      textLayer.innerHTML="";
+      overlay.innerHTML="";
+      refLayer.innerHTML="";
+      gizmoLayer.innerHTML="";
+      var W=wrapper.offsetWidth, H=wrapper.offsetHeight;
+      var isInt=(mode==='select'||mode==='delete');
+      var k = W / 800;
+      if(k < 0.2) k = 0.2;
+
+      // REFS
+      refs.forEach((r,i)=>{
+        var img=document.createElement('img');
+        img.src=r.src;
+        img.className='ref-img';
+        img.style.position='absolute';
+        img.style.left=r.x+'%'; img.style.top=r.y+'%'; img.style.width=r.w+'%';
+        img.style.transform=`translate(-50%,-50%) rotate(${r.rot||0}deg)`;
+        var baseOp = (r.opacity!==undefined ? r.opacity : 1);
+        img.style.opacity = (r.isQuiz!==false) ? (baseOp*0.9) : baseOp;
+        img.style.borderRadius = ((r.radius||0)*k) + 'px';
+        if(r.borderOn){
+          var bw=(r.borderW||2)*k;
+          var bc=hexWithOpacity(r.borderC||'#000000', r.borderOp!==undefined?r.borderOp:1);
+          img.style.border = `${bw}px solid ${bc}`;
+          img.style.boxSizing = 'border-box';
+        } else img.style.border='none';
+        if(r.crop) img.style.clipPath = `inset(${r.crop.t}% ${r.crop.r}% ${r.crop.b}% ${r.crop.l}%)`;
+        img.style.pointerEvents=isInt?'auto':'none';
+        img.setAttribute('data-idx',i);
+        refLayer.appendChild(img);
+
+        var isSelected = (selection.type === 'ref' && selection.index === i);
+        if (r.isQuiz && !isSelected) {
+          var ratio = 1;
+          var pre = imgStack.querySelector(`img[src*="${r.src.split('/').pop()}"]`);
+          if(pre && pre.naturalWidth > 0) ratio = pre.naturalWidth / pre.naturalHeight;
+          else if(img.naturalWidth > 0) ratio = img.naturalWidth / img.naturalHeight;
+          var pxW = (r.w/100)*W;
+          var pxH = pxW / ratio;
+          var pDot = document.createElement('div');
+          pDot.style.cssText = `position:absolute; left:${50+(r.dotX||0)}%; top:${50+(r.dotY||0)}%; width:10px; height:10px; background:#3498db; border:1px solid white; border-radius:50%; transform:translate(-50%,-50%); pointer-events:none;`;
+          var dotContainer = document.createElement('div');
+          dotContainer.style.cssText = `position:absolute; left:${r.x}%; top:${r.y}%; width:${pxW}px; height:${pxH}px; transform:translate(-50%,-50%) rotate(${r.rot||0}deg); pointer-events:none;`;
+          dotContainer.appendChild(pDot);
+          overlay.appendChild(dotContainer);
+        }
+      });
+
+      // OCCLUSIONS
+      occlusions.forEach((o,i)=>{
+        var el=document.createElementNS("http://www.w3.org/2000/svg", o.type==='rect'?'rect':'path');
+        var pxX=o.x/100*W, pxY=o.y/100*H, pxW=o.w/100*W, pxH=o.h/100*H;
+        var cx=pxX+pxW/2, cy=pxY+pxH/2;
+        var sW=(o.strokeWidth||6)*k;
+        if(o.type==='rect'){
+          el.setAttribute('x',pxX); el.setAttribute('y',pxY);
+          el.setAttribute('width',pxW); el.setAttribute('height',pxH);
+          if(o.rx) { el.setAttribute('rx', (o.rx/100*pxW)); el.setAttribute('ry', (o.rx/100*pxW)); }
+          el.setAttribute('transform',`rotate(${o.rot||0},${cx},${cy})`);
+        } else {
+          if(o.points){
+            var absPts=o.points.map(p=>({x:o.x+p.x,y:o.y+p.y}));
+            el.setAttribute('d',getPathData(absPts, o.connectEnds, o.smooth, o.rx, W, H));
+            el.setAttribute('transform',`rotate(${o.rot||0},${cx},${cy})`);
+          }
+        }
+        var isQ = o.isQuiz !== false;
+        el.setAttribute('fill', o.noFill?'none':o.color);
+        el.setAttribute('fill-opacity', isQ ? (o.fillOpacity*0.9) : o.fillOpacity);
+        el.setAttribute('stroke', o.strokeColor);
+        el.setAttribute('stroke-width', sW);
+        el.setAttribute('stroke-opacity', o.strokeOpacity);
+        el.setAttribute('stroke-linecap','round');
+        el.setAttribute('stroke-linejoin','round');
+        el.setAttribute('class','occ-shape');
+        el.setAttribute('data-idx',i);
+        el.style.pointerEvents=isInt?'auto':'none';
+        svgLayer.appendChild(el);
+      });
+
+      if((mode==='polygon'||mode==='line') && tempPoly.length>0){
+        var st = toolStyle[mode];
+        var dStr = getPathData(tempPoly, false, !!st.smooth, 0, W, H);
+        var path = document.createElementNS("http://www.w3.org/2000/svg","path");
+        path.setAttribute('d', dStr);
+        path.setAttribute('stroke', (!st.showStroke) ? 'none' : st.stroke);
+        path.setAttribute('stroke-opacity', st.strokeOp);
+        path.setAttribute('stroke-width', st.strokeW * k);
+        path.setAttribute('stroke-linecap','round');
+        path.setAttribute('stroke-linejoin','round');
+        path.setAttribute('fill', st.noFill ? 'none' : st.fill);
+        path.setAttribute('fill-opacity', st.fillOp);
+        svgLayer.appendChild(path);
+        var handle = document.createElement('div');
+        handle.className = 'img-dot';
+        handle.style.position = 'absolute';
+        handle.style.left = tempPoly[tempPoly.length-1].x+'%';
+        handle.style.top = tempPoly[tempPoly.length-1].y+'%';
+        handle.style.transform = 'translate(-50%, -50%)';
+        handle.style.background = '#2ecc71';
+        handle.style.width=(16*k)+'px'; handle.style.height=(16*k)+'px';
+        handle.style.pointerEvents='auto';
+        handle.onpointerdown = (e)=>{ e.stopPropagation(); if(mode==='polygon') finishPoly(true); else finishPoly(false); };
+        overlay.appendChild(handle);
+      }
+
+      // TEXTS
+      texts.forEach((t,i)=>{
+        var d=document.createElement('div');
+        d.className='img-text';
+        d.innerText=t.text;
+        d.style.left=t.x+'%'; d.style.top=t.y+'%';
+        d.style.transform=`translate(-50%,-50%) rotate(${t.rot||0}deg)`;
+        d.style.color=t.color;
+        d.style.fontSize=(t.size*k)+'px';
+        d.style.opacity=(t.opacity!==undefined?t.opacity:1);
+        var isSelected = (selection.type === 'text' && selection.index === i);
+        if(t.isQuiz!==false){
+          d.style.outline="1px dashed rgba(52,152,219,0.5)";
+          d.style.opacity="0.9";
+          if(!isSelected) {
+            var tDot = document.createElement('div');
+            tDot.style.cssText = `position:absolute; left:${50+(t.dotX||0)}%; top:${50+(t.dotY||0)}%; width:8px; height:8px; background:#e67e22; border:1px solid white; transform:translate(-50%,-50%) rotate(45deg); pointer-events:none;`;
+            d.appendChild(tDot);
+          }
+        }
+        if(t.bgOn){
+          d.style.backgroundColor = hexWithOpacity(t.bgColor, (t.bgOpacity!==undefined?t.bgOpacity:1));
+          d.style.padding = ((t.bgRad||4)*k)+'px';
+          d.style.borderRadius = ((t.bgRad||4)*k)+'px';
+        }
+        d.style.pointerEvents=isInt?'auto':'none';
+        d.setAttribute('data-idx',i);
+        textLayer.appendChild(d);
+      });
+
+      // POINTS
+      var visiblePointCount = 0;
+      pts.forEach((p,i)=>{
+        var d=document.createElement('div');
+        d.className='img-dot';
+        if(p.showNum!==false) { visiblePointCount++; d.innerText = visiblePointCount; }
+        d.style.left=p.x+'%'; d.style.top=p.y+'%';
+        var sz=(p.size||24)*k;
+        d.style.width=sz+'px'; d.style.height=sz+'px';
+        d.style.fontSize=Math.max(8*k,sz*0.6)+'px';
+        d.style.boxSizing='border-box'; d.style.borderStyle='solid';
+        d.style.backgroundColor=hexWithOpacity(p.color, (p.fillOpacity!==undefined?p.fillOpacity:1));
+        d.style.borderColor=hexWithOpacity(p.borderColor||'#000000', (p.strokeOpacity!==undefined?p.strokeOpacity:1));
+        d.style.color=(p.borderColor||'#000000');
+        d.style.borderWidth=((p.borderW!==undefined?p.borderW:3)*k)+'px';
+        d.style.borderRadius=(p.borderRad!==undefined?p.borderRad:50)+'%';
+        if(p.isQuiz!==false) d.style.opacity="0.9";
+        d.style.pointerEvents=isInt?'auto':'none';
+        d.setAttribute('data-idx',i);
+        overlay.appendChild(d);
+      });
+
+      if(selection.index>-1 && mode==='select') {
+        if(selection.type==='ref' && isCropMode) renderCropGizmo(W,H,k);
+        else renderGizmo(W,H,k);
+      }
+      updateUI();
+      maybeAutoSwitchMenu();
+    }
+
+    function finishPoly(closed){
+      if(tempPoly.length<2) return;
+      var toolKey = (mode==='polygon') ? 'polygon' : 'line';
+      var o = normalizeShape(tempPoly,'path',toolKey,closed);
+      if(o){ occlusions.push(o); selection={type:null,index:-1}; }
+      tempPoly = [];
+      render();
+    }
+
+    // ============================================================
+    // POINTER HANDLERS
+    // ============================================================
+    function handleStart(e){
+      if(e.target.closest('.app-toolbar')) return;
+
+      // --- NEW STYLUS PRIORITY LOGIC ---
+      // 1. Detect if this is a pen
+      if (e.pointerType === 'pen') {
+        _hasStylus = true;
+      }
+      // 2. If a stylus has EVER been detected, and this event is a finger (touch),
+      //    AND we are trying to use a tool (anything other than view mode),
+      //    then IGNORE this touch completely.
+      if (_hasStylus && e.pointerType === 'touch' && mode !== 'view') {
+        return;
+      }
+      // ---------------------------------
+
+      if (mode === 'view') return;
+
+      if (pickerMode) {
+        var h = sampleColor(e);
+        if (h) applyPickedColor(h);
+        return;
+      }
+
+      e.preventDefault();
+      var c=getCoords(e), W=wrapper.offsetWidth, H=wrapper.offsetHeight;
+
+      // Crop handles
+      if(isCropMode && e.target.classList.contains('crop-handle')) {
+        var type = e.target.dataset.cropHandle;
+        var it = refs[selection.index];
+        if(!it.crop) it.crop = {t:0,r:0,b:0,l:0};
+        var el = refLayer.querySelector(`[data-idx="${selection.index}"]`);
+        drag = {
+          mode:'crop', type:type, it:it,
+          startX:c.pxX, startY:c.pxY,
+          startCrop: {...it.crop},
+          W:it.w/100*W, H:(el?el.offsetHeight:50)
+        };
+        return;
+      }
+      // Vertex drag
+      if(e.target.classList.contains('gizmo-vertex')){
+        var itV = occlusions[selection.index];
+        var cx = (itV.x/100*W) + (itV.w/100*W)/2;
+        var cy = (itV.y/100*H) + (itV.h/100*H)/2;
+        drag = {
+          mode:'vertex', it: itV, idx: parseInt(e.target.dataset.vertexIdx),
+          cx: cx, cy: cy, rot: (itV.rot||0), W: W, H: H
+        };
+        return;
+      }
+      // Gizmo handles
+      if(e.target.classList.contains('gizmo-handle')){
+        var h=e.target.dataset.handle;
+        var it = getSelectedItem();
+        if(!it) return;
+        var cx, cy;
+        if(selection.type==='occ'){
+          cx = it.x/100*W + it.w/100*W/2;
+          cy = it.y/100*H + it.h/100*H/2;
+        } else {
+          cx = it.x/100*W;
+          cy = it.y/100*H;
+        }
+        var gwPx = 0, ghPx = 50;
+        if(selection.type==='ref'){
+           var elRef = refLayer.querySelector(`[data-idx="${selection.index}"]`);
+           gwPx = it.w/100*W;
+           ghPx = elRef ? elRef.offsetHeight : (it.w/100*W); 
+        } else if(selection.type==='text') {
+           var elTxt = textLayer.querySelector(`[data-idx="${selection.index}"]`);
+           gwPx = elTxt ? elTxt.offsetWidth+10 : 50;
+           ghPx = elTxt ? elTxt.offsetHeight+10 : 50;
+        }
+        drag = {
+          mode:h, it:it, sx:c.pxX, sy:c.pxY,
+          ox:it.x, oy:it.y, ow:it.w||0, oh:it.h||0, or:it.rot||0,
+          os:it.size||0, px:cx, py:cy,
+          sa:Math.atan2(c.pxY-cy,c.pxX-cx),
+          sd:Math.sqrt((c.pxX-cx)**2+(c.pxY-cy)**2),
+          op:it.points?JSON.parse(JSON.stringify(it.points)):null,
+          gw: gwPx, gh: ghPx
+        };
+        return;
+      }
+
+      // Hit test
+      if(mode==='select'||mode==='delete'){
+        var hit=null, el=document.elementFromPoint(e.clientX, e.clientY);
+        while(el && el!==wrapper){
+          if(el.dataset && el.dataset.idx !== undefined){
+            var i=parseInt(el.dataset.idx);
+            if(el.classList.contains('occ-shape')) hit={type:'occ',index:i};
+            else if(el.classList.contains('img-text')) hit={type:'text',index:i};
+            else if(el.classList.contains('img-dot')) hit={type:'point',index:i};
+            else if(el.classList.contains('ref-img')) hit={type:'ref',index:i};
+            break;
+          }
+          el=el.parentElement;
+        }
+        if(mode==='delete' && hit){
+          if(hit.type==='occ') occlusions.splice(hit.index,1);
+          else if(hit.type==='text') texts.splice(hit.index,1);
+          else if(hit.type==='ref') refs.splice(hit.index,1);
+          else pts.splice(hit.index,1);
+          selection={type:null,index:-1};
+          render();
+          return;
+        }
+        if(hit){
+          selection=hit;
+          isCropMode = (selection.type==='ref') ? isCropMode : false;
+          syncMenusFromState();
+          render();
+          if(!isCropMode) {
+            var it2 = getSelectedItem();
+            drag={mode:'move', it:it2, sx:c.pxX, sy:c.pxY, ox:it2.x, oy:it2.y};
+          }
+        } else {
+          selection={type:null,index:-1};
+          isCropMode=false;
+          render();
+        }
+        return;
+      }
+
+      // Create
+      if(mode==='point'){
+        var t=prompt("Label (use \\n for line break):");
+        if(t) {
+          var st = toolStyle.point;
+          pts.push({
+            x:c.x, y:c.y, text:t.replace(/\\n/g,'\n'),
+            color:st.fill, fillOpacity:st.fillOp,
+            borderColor:st.border, strokeOpacity:st.borderOp,
+            size:st.size, borderW:st.borderW, borderRad:st.rad,
+            showNum:st.showNum, isQuiz:st.isQuiz
+          });
+        }
+        selection={type:null,index:-1};
+        render();
+        return;
+      }
+      if(mode==='text'){
+        var tt=prompt("Text (use \\n for line break):");
+        if(tt){
+          var stt = toolStyle.text;
+          texts.push({
+            x:c.x, y:c.y, text:tt.replace(/\\n/g,'\n'),
+            color:stt.fill, size:stt.size, rot:stt.rot,
+            bgColor:stt.bg, bgOpacity:stt.bgOp, bgOn:stt.bgOn, bgRad:stt.pad,
+            opacity:stt.op, isQuiz:stt.isQuiz, dotX:0, dotY:0
+          });
+        }
+        render();
+        return;
+      }
+      if(mode==='polygon'||mode==='line'){
+        tempPoly.push({x:c.x, y:c.y});
+        render();
+        return;
+      }
+      if(mode==='draw'||mode==='square'){
+        drag = { mode:'create', type:mode, toolKey:mode, pts:[{x:c.x,y:c.y}] };
+        return;
+      }
+    }
+
+    function handleMove(e){
+      if (pickerMode) {
+        if(!pickerRAF){
+          pickerRAF = requestAnimationFrame(() => {
+            pickerRAF = 0;
+            var hex = sampleColor(e);
+            if(hex) setPickerPreview(e.clientX, e.clientY, hex);
+            else setPickerPreview(e.clientX, e.clientY, "");
+          });
+        }
+        return;
+      }
+      if(!drag) return;
+      e.preventDefault();
+      var c=getCoords(e);
+      var W=wrapper.offsetWidth, H=wrapper.offsetHeight;
+
+      if(drag.mode==='crop'){
+        var rad = (drag.it.rot||0) * Math.PI / 180;
+        var dx = c.pxX - drag.startX;
+        var dy = c.pxY - drag.startY;
+        var localDx = dx * Math.cos(rad) + dy * Math.sin(rad);
+        var localDy = -dx * Math.sin(rad) + dy * Math.cos(rad);
+        var pX = (localDx / drag.W) * 100;
+        var pY = (localDy / drag.H) * 100;
+        var s = drag.startCrop;
+        var t = drag.type;
+        if(t.includes('t')) drag.it.crop.t = Math.max(0, Math.min(100 - s.b - 5, s.t + pY));
+        if(t.includes('b')) drag.it.crop.b = Math.max(0, Math.min(100 - s.t - 5, s.b - pY));
+        if(t.includes('l')) drag.it.crop.l = Math.max(0, Math.min(100 - s.r - 5, s.l + pX));
+        if(t.includes('r')) drag.it.crop.r = Math.max(0, Math.min(100 - s.l - 5, s.r - pX));
+        render();
+        return;
+      }
+      if(drag.mode==='move-dot'){
+        var rad2 = -(drag.it.rot||0) * Math.PI / 180;
+        var dx2 = c.pxX - drag.px, dy2 = c.pxY - drag.py;
+        var lDx = dx2 * Math.cos(rad2) - dy2 * Math.sin(rad2);
+        var lDy = dx2 * Math.sin(rad2) + dy2 * Math.cos(rad2);
+        if(drag.gw > 0) drag.it.dotX = (lDx / drag.gw) * 100;
+        if(drag.gh > 0) drag.it.dotY = (lDy / drag.gh) * 100;
+        render();
+        return;
+      }
+      if(drag.mode==='vertex'){
+        var rad = -(drag.rot||0) * Math.PI / 180;
+        var dx = c.pxX - drag.cx;
+        var dy = c.pxY - drag.cy;
+        var ldx = dx * Math.cos(rad) - dy * Math.sin(rad);
+        var ldy = dx * Math.sin(rad) + dy * Math.cos(rad);
+        var worldPxX = drag.cx + ldx;
+        var worldPxY = drag.cy + ldy;
+        var worldX = (worldPxX / drag.W) * 100;
+        var worldY = (worldPxY / drag.H) * 100;
+        drag.it.points[drag.idx].x = worldX - drag.it.x;
+        drag.it.points[drag.idx].y = worldY - drag.it.y;
+        render();
+        return;
+      }
+      if(drag.mode==='create'){
+        drag.pts.push({x:c.x, y:c.y});
+        var k = W / 800; if(k<0.2)k=0.2;
+        var st = toolStyle[drag.toolKey];
+        if(!tmpSvg){
+          tmpSvg=document.createElementNS("http://www.w3.org/2000/svg", drag.type==='square'?'rect':'path');
+          tmpSvg.setAttribute('fill', st.noFill ? 'none' : st.fill);
+          tmpSvg.setAttribute('fill-opacity', st.fillOp);
+          tmpSvg.setAttribute('stroke', (!st.showStroke) ? 'none' : st.stroke);
+          tmpSvg.setAttribute('stroke-opacity', st.strokeOp);
+          tmpSvg.setAttribute('stroke-width', st.strokeW * k);
+          tmpSvg.setAttribute('stroke-linecap','round');
+          tmpSvg.setAttribute('stroke-linejoin','round');
+          svgLayer.appendChild(tmpSvg);
+        }
+        if(drag.type==='square'){
+          var p0=drag.pts[0];
+          var w=(c.x-p0.x)/100*W;
+          var h=(c.y-p0.y)/100*H;
+          tmpSvg.setAttribute('x', (p0.x/100*W) + (w<0?w:0));
+          tmpSvg.setAttribute('y', (p0.y/100*H) + (h<0?h:0));
+          tmpSvg.setAttribute('width', Math.abs(w));
+          tmpSvg.setAttribute('height', Math.abs(h));
+        } else {
+          var d = getPathData(drag.pts, false, !!st.smooth, 0, W, H);
+          tmpSvg.setAttribute('d', d);
+        }
+        return;
+      }
+      if(drag.mode==='move'){
+        drag.it.x = drag.ox + ((c.pxX-drag.sx)/W)*100;
+        drag.it.y = drag.oy + ((c.pxY-drag.sy)/H)*100;
+        render();
+        return;
+      }
+      if(drag.mode==='rotate'){
+        drag.it.rot = drag.or + (Math.atan2(c.pxY-drag.py,c.pxX-drag.px)-drag.sa)*(180/Math.PI);
+        render();
+        return;
+      }
+      if(drag.mode==='resize'){
+        var cos=Math.cos(-drag.or*Math.PI/180), sin=Math.sin(-drag.or*Math.PI/180);
+        var ddx=c.pxX-drag.sx, ddy=c.pxY-drag.sy;
+        var ldx=ddx*cos-ddy*sin, ldy=ddx*sin+ddy*cos;
+        if(selection.type==='occ' && drag.it.type==='rect'){
+          drag.it.w=Math.max(1,drag.ow+ldx/W*100);
+          drag.it.h=Math.max(1,drag.oh+ldy/H*100);
+        } else if(selection.type==='text'||selection.type==='point'||selection.type==='ref'){
+          var s=Math.sqrt((c.pxX-drag.px)**2+(c.pxY-drag.py)**2)/drag.sd;
+          if(selection.type==='text') drag.it.size=Math.max(8,drag.os*s);
+          else if(selection.type==='point') drag.it.size=Math.max(5,drag.os*s);
+          else if(selection.type==='ref') drag.it.w=Math.max(1,drag.ow*s);
+        } else {
+          var ss=((drag.ow+ldx/W*100)/drag.ow + (drag.oh+ldy/H*100)/drag.oh)/2;
+          if(ss<0.1) ss=0.1;
+          drag.it.w=drag.ow*ss;
+          drag.it.h=drag.oh*ss;
+          if(drag.it.points) drag.it.points=drag.op.map(p=>({x:p.x*ss,y:p.y*ss}));
+        }
+        render();
+        return;
+      }
+    }
+
+    function handleEnd(){
+      if(drag && drag.mode==='create'){
+        if(tmpSvg){ tmpSvg.remove(); tmpSvg=null; }
+        var toolKey = drag.type;
+        var o = (drag.type==='square')
+          ? normalizeShape([{x:drag.pts[0].x,y:drag.pts[0].y},{x:drag.pts[drag.pts.length-1].x,y:drag.pts[drag.pts.length-1].y}],'rect','square')
+          : normalizeShape(drag.pts,'path','draw');
+        if(o){ occlusions.push(o); selection={type:null,index:-1}; }
+      }
+      drag=null;
+      render();
+    }
+
+    // ============================================================
+    // BINDS
+    // ============================================================
+    function bindTool(btn, toolKey){
+      btn.onclick = (e)=>{
+        e.stopPropagation();
+        if (toolKey==='view') { setMode('view'); selection={type:null,index:-1}; hideAllMenus(); return; }
+        if (toolKey==='select') { setMode('select'); return; }
+        if (toolKey==='delete') { setMode('delete'); return; }
+        onToolButton(toolKey);
+        if (mode === toolKey && menuByTool[toolKey]) {
+          // toggled by onToolButton
+        }
+      };
+    }
+    bindTool(btns.view,'view');
+    bindTool(btns.sel,'select');
+    bindTool(btns.del,'delete');
+    bindTool(btns.pt,'point');
+    bindTool(btns.txt,'text');
+    bindTool(btns.dr,'draw');
+    bindTool(btns.ln,'line');
+    bindTool(btns.sq,'square');
+    bindTool(btns.poly,'polygon');
+
+    btns.dup.onclick = (e)=>{
+      e.stopPropagation();
+      if(selection.index === -1) return;
+      var items = (selection.type==='occ'?occlusions:(selection.type==='text'?texts:(selection.type==='ref'?refs:pts)));
+      var newItem = JSON.parse(JSON.stringify(items[selection.index]));
+      newItem.x += 2; newItem.y += 2;
+      items.push(newItem);
+      selection = {type: selection.type, index: items.length-1};
+      render();
+    };
+    btns.crop.onclick = (e)=>{
+      e.stopPropagation();
+      if(selection.index>-1 && selection.type==='ref'){
+        isCropMode = !isCropMode;
+        render();
+      }
+    };
+    btns.editTxt.onclick = (e)=>{
+      e.stopPropagation();
+      if(selection.index === -1) return;
+      var it = (selection.type==='text') ? texts[selection.index] : (selection.type==='point' ? pts[selection.index] : null);
+      if(!it) return;
+      var nt = prompt("New value (use \\n for line break):", (it.text||"").replace(/\n/g,'\\n'));
+      if(nt !== null) { it.text = nt.replace(/\\n/g,'\n'); render(); }
+    };
+    btns.quizType.onclick = (e)=>{
+      e.stopPropagation();
+      var it = getSelectedItem();
+      if(it) it.isQuiz = (it.isQuiz===undefined) ? false : !it.isQuiz;
+      else {
+        if(toolStyle[mode] && toolStyle[mode].isQuiz !== undefined) toolStyle[mode].isQuiz = !toolStyle[mode].isQuiz;
+      }
+      render();
+    };
+    btns.save.onclick = (e)=>{
+      e.stopPropagation();
+      var s = JSON.stringify({points:pts, occlusions:occlusions, texts:texts, refs:refs});
+      var t=document.createElement("textarea");
+      t.value="coords:"+s;
+      document.body.appendChild(t);
+      t.select();
+      document.execCommand('copy');
+      document.body.removeChild(t);
+      var old = btns.save.innerHTML;
+      btns.save.innerText="Copied!";
+      setTimeout(()=>{ btns.save.innerHTML = old; }, 1100);
+    };
+
+    function bindInput(id, toolKey, field, type){
+      var el = document.getElementById(id);
+      if(!el) return;
+      el.addEventListener('input', function(e){
+        var v;
+        if (el.type==='checkbox') v = el.checked;
+        else v = el.value;
+        if (type==='num') v = !!v;
+        if (id==='dr-smooth') v = el.checked;
+        if (id==='ln-smooth') v = el.checked;
+        if (id==='po-smooth') v = el.checked;
+        applyMenuChange(toolKey, field, v);
+      });
+      el.addEventListener('pointerdown', ev => ev.stopPropagation());
+    }
+    bindInput('pt-fill','point','fill');
+    bindInput('pt-border','point','border');
+    bindInput('pt-op','point','op');
+    bindInput('pt-size','point','size');
+    bindInput('pt-bw','point','bw');
+    bindInput('pt-rad','point','rad');
+    bindInput('pt-num','point','num');
+    bindInput('tx-fill','text','fill');
+    bindInput('tx-bg','text','bg');
+    bindInput('tx-op','text','op');
+    bindInput('tx-size','text','size');
+    bindInput('tx-bgop','text','bgop');
+    bindInput('tx-pad','text','pad');
+    bindInput('tx-bgOn','text','bgOn');
+    bindInput('dr-fill','draw','fill');
+    bindInput('dr-stroke','draw','stroke');
+    bindInput('dr-fop','draw','fop');
+    bindInput('dr-sop','draw','sop');
+    bindInput('dr-sw','draw','sw');
+    bindInput('dr-smooth','draw','smooth');
+    bindInput('dr-nofill','draw','nofill');
+    bindInput('dr-borderon','draw','borderon');
+    bindInput('ln-fill','line','fill');
+    bindInput('ln-stroke','line','stroke');
+    bindInput('ln-fop','line','fop');
+    bindInput('ln-sop','line','sop');
+    bindInput('ln-sw','line','sw');
+    bindInput('ln-rx','line','rx');
+    bindInput('ln-nofill','line','nofill');
+    bindInput('ln-borderon','line','borderon');
+    bindInput('ln-smooth','line','smooth');
+    bindInput('sq-fill','square','fill');
+    bindInput('sq-stroke','square','stroke');
+    bindInput('sq-fop','square','fop');
+    bindInput('sq-sop','square','sop');
+    bindInput('sq-sw','square','sw');
+    bindInput('sq-rx','square','rx');
+    bindInput('sq-nofill','square','nofill');
+    bindInput('sq-borderon','square','borderon');
+    bindInput('po-fill','polygon','fill');
+    bindInput('po-stroke','polygon','stroke');
+    bindInput('po-fop','polygon','fop');
+    bindInput('po-sop','polygon','sop');
+    bindInput('po-sw','polygon','sw');
+    bindInput('po-rx','polygon','rx');
+    bindInput('po-nofill','polygon','nofill');
+    bindInput('po-borderon','polygon','borderon');
+    bindInput('po-close','polygon','connect');
+    bindInput('po-smooth','polygon','smooth');
+    bindInput('rf-op','ref','op');
+    bindInput('rf-rad','ref','rad');
+    bindInput('rf-border','ref','border');
+    bindInput('rf-bop','ref','bop');
+    bindInput('rf-bw','ref','bw');
+    bindInput('rf-on','ref','on');
+
+    function selectionMenuKey(){
+      if(selection.index < 0) return null;
+      if(selection.type === 'point') return 'point';
+      if(selection.type === 'text') return 'text';
+      if(selection.type === 'occ') {
+        if(mode === 'draw') return 'draw';
+        if(mode === 'line') return 'line';
+        if(mode === 'square') return 'square';
+        if(mode === 'polygon') return 'polygon';
+        return 'draw';
+      }
+      if(selection.type === 'ref') return 'ref';
+      return null;
+    }
+
+    function maybeAutoSwitchMenu(){
+      if (pickerMode) return;
+      if (_ctxLock) return;
+      var sig = (selection.type || "") + ":" + (selection.index ?? -1);
+      if (sig !== _ctxSelSig) {
+        _ctxSelSig = sig;
+        _ctxUserHidden = false;
+      }
+      if (selection.index < 0) {
+        if (_ctxAuto) {
+          hideAllMenus();
+          _ctxOpen = false;
+          _ctxAuto = false;
+        }
+        return;
+      }
+      if (_ctxUserHidden) return;
+      var k = selectionMenuKey();
+      if (k) showMenuFor(k, true);
+    }
+
+    function wireToggleButton(btnId, inputId, onValue, offValue){
+      var btn = document.getElementById(btnId);
+      var inp = document.getElementById(inputId);
+      if(!btn || !inp) return;
+      function readState(){
+        if(inp.type === 'checkbox') return !!inp.checked;
+        return (inp.value === onValue);
+      }
+      function writeState(next){
+        if(inp.type === 'checkbox') {
+          inp.checked = next;
+          inp.dispatchEvent(new Event('input', {bubbles:true}));
+        } else {
+          inp.value = next ? onValue : offValue;
+          inp.dispatchEvent(new Event('input', {bubbles:true}));
+        }
+      }
+      function sync(){
+        btn.classList.toggle('active', readState());
+      }
+      btn.addEventListener('pointerdown', ev => ev.stopPropagation());
+      btn.onclick = (e)=>{
+        e.stopPropagation();
+        writeState(!readState());
+        sync();
+      };
+      sync();
+      return sync;
+    }
+
+    var syncPtNum = wireToggleButton('pt-num-toggle', 'pt-num', null, null);
+    var syncTxBgOn = wireToggleButton('tx-bgOn-toggle', 'tx-bgOn', null, null);
+    var syncDrNoFill = wireToggleButton('dr-nofill-toggle', 'dr-nofill', null, null);
+    var syncDrStroke = wireToggleButton('dr-borderon-toggle', 'dr-borderon', null, null);
+    var syncDrSmooth = wireToggleButton('dr-smooth-toggle', 'dr-smooth', null, null);
+    var syncLnNoFill = wireToggleButton('ln-nofill-toggle', 'ln-nofill', null, null);
+    var syncLnStroke = wireToggleButton('ln-borderon-toggle', 'ln-borderon', null, null);
+    var syncLnSmooth = wireToggleButton('ln-smooth-toggle', 'ln-smooth', null, null);
+    var syncSqNoFill = wireToggleButton('sq-nofill-toggle', 'sq-nofill', null, null);
+    var syncSqStroke = wireToggleButton('sq-borderon-toggle', 'sq-borderon', null, null);
+    var syncPoNoFill = wireToggleButton('po-nofill-toggle', 'po-nofill', null, null);
+    var syncPoStroke = wireToggleButton('po-borderon-toggle', 'po-borderon', null, null);
+    var syncPoClose  = wireToggleButton('po-close-toggle', 'po-close', null, null);
+    var syncPoSmooth = wireToggleButton('po-smooth-toggle', 'po-smooth', null, null);
+    var syncRfOn = wireToggleButton('rf-borderon-toggle', 'rf-on', null, null);
+
+    var _syncMenusFromStateOriginal = syncMenusFromState;
+    syncMenusFromState = function(){
+      _syncMenusFromStateOriginal();
+      if(syncPtNum) syncPtNum();
+      if(syncTxBgOn) syncTxBgOn();
+      if(syncDrNoFill) syncDrNoFill();
+      if(syncDrStroke) syncDrStroke();
+      if(syncDrSmooth) syncDrSmooth();
+      if(syncLnNoFill) syncLnNoFill();
+      if(syncLnStroke) syncLnStroke();
+      if(syncLnSmooth) syncLnSmooth();
+      if(syncSqNoFill) syncSqNoFill();
+      if(syncSqStroke) syncSqStroke();
+      if(syncPoNoFill) syncPoNoFill();
+      if(syncPoStroke) syncPoStroke();
+      if(syncPoClose)  syncPoClose();
+      if(syncPoSmooth) syncPoSmooth();
+      if(syncRfOn) syncRfOn();
+      maybeAutoSwitchMenu();
+    };
+
+    var _renderOriginal2 = render;
+    render = function(){
+      _renderOriginal2();
+      maybeAutoSwitchMenu();
+    };
+
+    function bindPick(btnId, toolKey, target){
+      var b = document.getElementById(btnId);
+      if(!b) return;
+      b.onclick = (e)=>{ e.stopPropagation(); startPicker(toolKey, target); };
+    }
+    bindPick('pt-pick-fill','point','fill');
+    bindPick('pt-pick-border','point','border');
+    bindPick('tx-pick-fill','text','fill');
+    bindPick('tx-pick-bg','text','bg');
+    bindPick('dr-pick-fill','draw','fill');
+    bindPick('dr-pick-stroke','draw','stroke');
+    bindPick('ln-pick-fill','line','fill');
+    bindPick('ln-pick-stroke','line','stroke');
+    bindPick('sq-pick-fill','square','fill');
+    bindPick('sq-pick-stroke','square','stroke');
+    bindPick('po-pick-fill','polygon','fill');
+    bindPick('po-pick-stroke','polygon','stroke');
+    bindPick('rf-pick-border','ref','border');
+
+    var rfReset = document.getElementById('rf-reset-crop');
+    if(rfReset) rfReset.onclick = (e)=>{
+      e.stopPropagation();
+      if(selection.index>-1 && selection.type==='ref'){
+        refs[selection.index].crop = {t:0,r:0,b:0,l:0};
+        render();
+      }
+    };
+
+    // ============================================================
+    // GLOBAL LISTENERS
+    // ============================================================
+    wrapper.addEventListener('pointerdown', handleStart);
+    window.addEventListener('pointermove', handleMove);
+    window.addEventListener('pointerup', function(){
+      hidePickerPreview();
+      if(!pickerMode) wrapper.style.cursor = '';
+      handleEnd();
+    });
+    window.addEventListener('blur', hidePickerPreview);
+    window.addEventListener('resize', render);
+
+    hideAllMenus();
+    syncMenusFromState();
+    setTimeout(render, 80);
+  }
+})();
+</script>
+
+
+
+
+
+<style>
+
+/* =========================================================
+   Viewport & layers
+   ========================================================= */
+.app-viewport{
+  position:relative;width:100%;
+  background:#fff;border-radius:8px;overflow:hidden;
+  touch-action:none; /* JS switches to auto in view mode */
+}
+#img-stack{z-index:1;position:relative}
+#img-stack img{width:100%;pointer-events:none}
+#ref-layer{z-index:10 !important;position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
+#text-layer{z-index:15;position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none !important}
+#svg-layer{z-index:20;position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none !important}
+.label-overlay{z-index:40;position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none !important}
+#gizmo-layer{z-index:100;position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
+
+.img-text,.occ-shape,.img-dot,.ref-img{pointer-events:auto}
+.occ-shape{vector-effect:none}
+
+.img-dot{
+  position:absolute;display:flex;align-items:center;justify-content:center;
+  transform:translate(-50%,-50%);
+  box-shadow:0 2px 4px rgba(0,0,0,.30);
+  z-index:20;font-weight:bold;color:#fff;border-style:solid;
+  text-shadow:0 1px 2px rgba(0,0,0,.50);
+  white-space:pre-wrap;text-align:center;
+}
+.img-text{position:absolute;transform-origin:center center;text-align:center;white-space:pre-wrap}
+
+/* Gizmo */
+.gizmo-box{position:absolute;border:1px dashed #3498db;pointer-events:none;z-index:100;box-sizing:border-box}
+.gizmo-handle{
+  width:12px;height:12px;background:#3498db;border:2px solid #fff;border-radius:50%;
+  position:absolute;pointer-events:auto;box-shadow:0 1px 3px rgba(0,0,0,.30);
+}
+.gizmo-handle.move{top:50%;left:50%;transform:translate(-50%,-50%);cursor:move;width:16px;height:16px;border-radius:6px}
+.gizmo-handle.br{bottom:-6px;right:-6px;cursor:nwse-resize}
+.gizmo-handle.tr{top:-20px;right:-6px;cursor:crosshair;background:#e67e22}
+.gizmo-handle.dot-mover{transition:transform .1s;background:#f1c40f !important;border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,.30)}
+.gizmo-handle.dot-mover:hover{transform:translate(-50%,-50%) scale(1.12)}
+.gizmo-vertex{position:absolute;width:10px;height:10px;background:#fff;border:1px solid #3498db;transform:translate(-50%,-50%);pointer-events:auto;cursor:crosshair}
+
+@media (max-width:520px){
+  .tb-scroll { height: 32px; }
+  .tb-btn { height: 28px; }
+
+  /* FIX: Force auto height here too so background expands on mobile */
+  .tool-menu { 
+    height: auto !important; 
+    min-height: 32px; 
+  }
+
+  /* ... keep the rest of your mobile styles ... */
+  .ctx-btn{height:28px;min-width:28px}
+  .ctx-chip{height:28px;padding:0 6px;border-radius:9px}
+  .ctx-chip input[type="range"]{width:78px}
+  .ctx-color{height:28px;padding:0 6px;border-radius:9px}
+  .ctx-color input[type="color"]{height:20px}
+  .ctx-pick{height:22px;width:28px;line-height:22px !important}
+}
+
+</style>

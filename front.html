@@ -1,0 +1,340 @@
+<div class="card-container">
+    <div id="d-image" style="display:none">{{Image}}</div>
+    <div id="d-objimages" style="display:none">{{ObjectImages}}</div>
+    <div id="d-savecode" style="display:none">{{SaveCode}}</div>
+
+    <div class="header-section">
+        <div class="deck-text">{{Deck}}</div>
+        <div class="front-text">{{Front}}</div>
+    </div>
+
+    <div class="integrated-app" id="app-root">
+        <div class="app-viewport" id="game-wrapper" style="touch-action: pan-x pan-y pinch-zoom; overflow: visible;">
+            <div id="img-stack"></div>
+            <div id="ref-layer"></div>
+            <div id="text-layer"></div>
+            <svg id="svg-layer"></svg>
+            <div class="label-overlay" id="overlay"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    var wrapper = document.getElementById('game-wrapper');
+    var imgStack = document.getElementById('img-stack');
+    var refLayer = document.getElementById('ref-layer');
+    var svgLayer = document.getElementById('svg-layer');
+    var textLayer = document.getElementById('text-layer');
+    var overlay = document.getElementById('overlay');
+
+    var GHOST_OPACITY = 0.05; 
+    var LONG_PRESS_DURATION = 600; 
+
+    var hexToRgb = (h) => { var r=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(h); return r?{r:parseInt(r[1],16),g:parseInt(r[2],16),b:parseInt(r[3],16)}:{r:0,g:0,b:0}; };
+    var hexWithOpacity = (h, o) => { if(!h||h==='none') return 'transparent'; var r=hexToRgb(h); return `rgba(${r.r},${r.g},${r.b},${o})`; };
+
+    // --- Path Generation ---
+    var getPathData = (points, isClosed, isSmooth, radius, W, H) => {
+        var p = points.map(pt => ({x:(pt.x/100)*W, y:(pt.y/100)*H}));
+        if(p.length < 2) return "";
+        var d = "";
+        
+        if (isSmooth) {
+            d = "M "+p[0].x.toFixed(1)+" "+p[0].y.toFixed(1);
+            var loop = isClosed ? p.concat([p[0],p[1]]) : p;
+            var end = isClosed ? p.length : p.length-1;
+            for(var i=0; i<end; i++) {
+                var p0=loop[i===0?(isClosed?loop.length-3:0):i-1], p1=loop[i], p2=loop[i+1], p3=loop[i+2]||p2;
+                var cp1x=p1.x+(p2.x-p0.x)/6, cp1y=p1.y+(p2.y-p0.y)/6, cp2x=p2.x-(p3.x-p1.x)/6, cp2y=p2.y-(p3.y-p1.y)/6;
+                d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)} ${cp2x.toFixed(1)} ${cp2y.toFixed(1)} ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+            }
+        } else if (radius > 0) {
+            var len = p.length;
+            for(var i=0; i<len; i++){
+                if(!isClosed && (i===0 || i===len-1)){
+                    d += (i===0?"M ":"L ") + p[i].x.toFixed(1)+" "+p[i].y.toFixed(1);
+                    continue;
+                }
+                var curr=p[i], prev=p[(i-1+len)%len], next=p[(i+1)%len];
+                var v1={x:prev.x-curr.x, y:prev.y-curr.y}, v2={x:next.x-curr.x, y:next.y-curr.y};
+                var l1=Math.sqrt(v1.x**2+v1.y**2), l2=Math.sqrt(v2.x**2+v2.y**2);
+                var r=Math.min(radius, l1/2, l2/2);
+                var s={x:curr.x+(v1.x/l1)*r, y:curr.y+(v1.y/l1)*r}, e={x:curr.x+(v2.x/l2)*r, y:curr.y+(v2.y/l2)*r};
+                if(i===0 && isClosed) d+=`M ${s.x.toFixed(1)} ${s.y.toFixed(1)} `;
+                else if(i===0) d+=`M ${curr.x.toFixed(1)} ${curr.y.toFixed(1)} `;
+                else d+=`L ${s.x.toFixed(1)} ${s.y.toFixed(1)} `;
+                d+=`Q ${curr.x.toFixed(1)} ${curr.y.toFixed(1)} ${e.x.toFixed(1)} ${e.y.toFixed(1)} `;
+            }
+            if(isClosed) d+="Z";
+        } else {
+            d = "M " + p[0].x.toFixed(1) + " " + p[0].y.toFixed(1);
+            for(var i=1; i<p.length; i++) d += " L " + p[i].x.toFixed(1) + " " + p[i].y.toFixed(1);
+            if(isClosed) d += " Z";
+        }
+        return d;
+    };
+
+    // --- Data Parsing ---
+    var rawSave = (document.getElementById('d-savecode').innerText || "").replace(/^coords:/, '').trim();
+    var data = {points:[], occlusions:[], texts:[], refs:[]};
+    if(rawSave) { try { data = JSON.parse(rawSave); } catch(e){} }
+
+    var pts = data.points || [], occlusions = data.occlusions || [], texts = data.texts || [], refs = data.refs || [];
+
+    // --- Render Images ---
+    var bgHtml = document.getElementById('d-image').innerHTML;
+    var tmp = document.createElement('div');
+    tmp.innerHTML = bgHtml;
+    tmp.querySelectorAll('img').forEach(img => {
+        img.style.width = '100%';
+        imgStack.appendChild(img);
+    });
+
+    var revealAll = () => {
+        // Reveal Shapes
+        document.querySelectorAll('.quiz-shape').forEach((el, idx) => {
+            var o = occlusions[idx];
+            if(o && o.isQuiz) {
+                el.setAttribute('fill-opacity', GHOST_OPACITY);
+                if(o.strokeColor !== 'none') el.setAttribute('stroke-opacity', GHOST_OPACITY);
+            }
+        });
+        
+        // Reveal Text & Images via their dots
+        document.querySelectorAll('.quiz-toggle-dot').forEach(dot => {
+            if(dot.style.background.indexOf('3498db') > -1) dot.click(); 
+        });
+
+        document.querySelectorAll('.speech-bubble').forEach(b => b.classList.add('active'));
+        document.querySelectorAll('.game-dot-point').forEach(d => d.classList.add('dot-active'));
+
+        wrapper.style.boxShadow = "inset 0 0 0 4px #3498db";
+        setTimeout(() => wrapper.style.boxShadow = "none", 300);
+    };
+
+    var render = () => {
+        var W = wrapper.offsetWidth, H = wrapper.offsetHeight;
+        if(W === 0) return;
+
+        var k = W / 800;
+        svgLayer.innerHTML=""; textLayer.innerHTML=""; overlay.innerHTML=""; refLayer.innerHTML="";
+
+        // 1. REFS (Images)
+        refs.forEach(r => {
+            var container = document.createElement('div');
+            container.style.cssText = `position:absolute; left:${r.x}%; top:${r.y}%; width:${r.w}%; transform:translate(-50%,-50%) rotate(${r.rot||0}deg); pointer-events:none;`;
+
+            var img = document.createElement('img');
+            img.src = r.src;
+            img.className = 'quiz-item';
+
+            if (r.isQuiz !== false) {
+                img.style.cssText = `width:100%; opacity:0; transition: opacity 0.2s; pointer-events:auto; cursor:pointer; display:block; border-radius:${(r.radius||0)*k}px;`;
+                if(r.crop) img.style.clipPath = `inset(${r.crop.t}% ${r.crop.r}% ${r.crop.b}% ${r.crop.l}%)`;
+
+                var dot = document.createElement('div');
+                dot.className = 'game-dot quiz-toggle-dot';
+                dot.style.cssText = `position:absolute; left:${50+(r.dotX||0)}%; top:${50+(r.dotY||0)}%; transform:translate(-50%,-50%); z-index:100; pointer-events:auto; cursor:pointer; width:${20*k}px; height:${20*k}px; background:#3498db; border:2px solid white; border-radius:50%; box-shadow: 0 2px 5px rgba(0,0,0,0.3);`;
+
+                var toggle = () => {
+                    var isHidden = parseFloat(img.style.opacity) < 0.1;
+                    img.style.opacity = isHidden ? (r.opacity || 1) : 0;
+                    dot.style.background = isHidden ? "#2ecc71" : "#3498db";
+                };
+                img.onclick = toggle;
+                dot.onclick = (e) => { e.stopPropagation(); toggle(); };
+                container.appendChild(dot);
+            } else {
+                img.style.cssText = `width:100%; opacity:${r.opacity || 1}; pointer-events:none; display:block; border-radius:${(r.radius||0)*k}px;`;
+                if(r.crop) img.style.clipPath = `inset(${r.crop.t}% ${r.crop.r}% ${r.crop.b}% ${r.crop.l}%)`;
+            }
+            container.appendChild(img);
+            refLayer.appendChild(container);
+        });
+
+        // 2. TEXTS
+        texts.forEach(t => {
+            var d = document.createElement('div');
+            d.className='img-text quiz-text';
+            d.innerText=t.text;
+            d.style.left=t.x+'%'; d.style.top=t.y+'%';
+            d.style.transform=`translate(-50%,-50%) rotate(${t.rot}deg)`;
+            d.style.color=t.color; d.style.fontSize=(t.size*k)+'px';
+            if(t.bold) d.style.fontWeight='bold';
+            if(t.italic) d.style.fontStyle='italic';
+            if(t.underline) d.style.textDecoration='underline';
+            
+            if(t.bgOn){ 
+                d.style.backgroundColor=hexWithOpacity(t.bgColor,t.bgOpacity);
+                d.style.padding=((t.bgRad||4)*k)+'px';
+                d.style.borderRadius=((t.bgRad||4)*k)+'px';
+            }
+
+            if(t.isQuiz !== false) {
+                d.style.opacity = 1;
+                d.style.pointerEvents = 'auto';
+                
+                var originalColor = t.color;
+                var originalBg = t.bgOn ? hexWithOpacity(t.bgColor,t.bgOpacity) : 'transparent';
+                
+                d.style.color = 'transparent';
+                d.style.backgroundColor = 'transparent';
+                d.style.userSelect = 'none';
+                
+                var tDot = document.createElement('div');
+                tDot.className = 'game-dot quiz-toggle-dot';
+                var dotSz = 14*k;
+                tDot.style.cssText = `position:absolute; left:${50+(t.dotX||0)}%; top:${50+(t.dotY||0)}%; width:${dotSz}px; height:${dotSz}px; background:#3498db; border:2px solid white; transform:translate(-50%,-50%) rotate(45deg); cursor:pointer; pointer-events:auto; box-shadow:0 2px 4px rgba(0,0,0,0.3);`;
+                
+                var toggleText = () => {
+                    var isHidden = (d.style.color === 'transparent');
+                    d.style.color = isHidden ? originalColor : 'transparent';
+                    d.style.backgroundColor = isHidden ? originalBg : 'transparent';
+                    tDot.style.background = isHidden ? "#2ecc71" : "#3498db";
+                };
+                
+                tDot.onclick = (e) => { e.stopPropagation(); toggleText(); };
+                d.onclick = (e) => { if(d.style.color !== 'transparent') toggleText(); };
+                
+                d.appendChild(tDot);
+            }
+
+            textLayer.appendChild(d);
+        });
+
+        // 3. SHAPES (Occlusions)
+        occlusions.forEach(o => {
+            var el = document.createElementNS("http://www.w3.org/2000/svg", o.type==='rect'?'rect':'path');
+            el.setAttribute('class', 'quiz-shape');
+            var pxX=o.x/100*W, pxY=o.y/100*H, pxW=o.w/100*W, pxH=o.h/100*H, cx=pxX+pxW/2, cy=pxY+pxH/2;
+            if(o.type==='rect'){
+                el.setAttribute('x',pxX); el.setAttribute('y',pxY); el.setAttribute('width',pxW); el.setAttribute('height',pxH);
+                if(o.rx) { var rxC=o.rx/100*pxW; el.setAttribute('rx',rxC); el.setAttribute('ry',rxC); }
+            } else {
+                var abs=o.points.map(p=>({x:o.x+p.x,y:o.y+p.y}));
+                el.setAttribute('d', getPathData(abs,o.connectEnds,o.smooth,o.rx,W,H));
+            }
+            el.setAttribute('transform',`rotate(${o.rot||0},${cx},${cy})`);
+            el.setAttribute('fill', o.noFill?'none':o.color); el.setAttribute('fill-opacity', o.fillOpacity);
+            el.setAttribute('stroke', o.strokeColor); el.setAttribute('stroke-width', o.strokeWidth*k); el.setAttribute('stroke-opacity', o.strokeOpacity);
+
+            if(o.isQuiz) {
+                el.style.cursor='pointer';
+                el.style.pointerEvents='auto';
+                el.onclick=()=>{
+                    var cur = parseFloat(el.getAttribute('fill-opacity'));
+                    var toGhost = (cur > GHOST_OPACITY + 0.05);
+                    el.setAttribute('fill-opacity', toGhost ? GHOST_OPACITY : o.fillOpacity);
+                    if(o.strokeColor !== 'none') el.setAttribute('stroke-opacity', toGhost ? GHOST_OPACITY : o.strokeOpacity);
+                };
+            }
+            svgLayer.appendChild(el);
+        });
+
+        // 4. POINTS (WITH SMART POSITIONING)
+        var visiblePointCount = 0;
+        pts.forEach((p, i) => {
+            var grp = document.createElement('div'); grp.className = 'point-group'; grp.style.left = p.x+'%'; grp.style.top = p.y+'%';
+            var d = document.createElement('div'); d.className='game-dot game-dot-point';
+            if(p.showNum!==false) { visiblePointCount++; d.innerText = visiblePointCount; }
+            var sz=(p.size||12)*k; d.style.width=sz+'px'; d.style.height=sz+'px'; d.style.fontSize=Math.max(8, sz*0.6)+'px';
+            d.style.backgroundColor = hexWithOpacity(p.color,p.fillOpacity||1); d.style.borderColor=hexWithOpacity(p.borderColor||'#000',p.strokeOpacity||1);
+            d.style.color=p.borderColor||'#000'; d.style.borderWidth=(p.borderW*k||2)+'px'; d.style.borderRadius=(p.borderRad!==undefined?p.borderRad:50)+'%';
+            
+            var bub = document.createElement('div'); 
+            bub.className='speech-bubble'; 
+            bub.innerText=p.text; 
+            bub.style.bottom=(sz/2+10)+'px';
+
+            // --- SMART POSITIONING CHECK ---
+            if(p.x < 15) {
+                bub.classList.add('is-left');
+            } else if (p.x > 85) {
+                bub.classList.add('is-right');
+            }
+            // -------------------------------
+
+            d.onclick=(e)=>{ 
+                e.stopPropagation(); 
+                var act=bub.classList.contains('active'); 
+                document.querySelectorAll('.speech-bubble').forEach(b=>b.classList.remove('active')); 
+                document.querySelectorAll('.game-dot-point').forEach(dot=>dot.classList.remove('dot-active')); 
+                if(!act){ bub.classList.add('active'); d.classList.add('dot-active'); } 
+            };
+            
+            grp.appendChild(d); grp.appendChild(bub); overlay.appendChild(grp);
+        });
+    };
+
+    var timer, startX, startY, isPressing = false;
+    var startPress = (e) => {
+        if (e.isPrimary === false) return;
+        isPressing = true;
+        startX = e.clientX; startY = e.clientY;
+        timer = setTimeout(function() { if(isPressing) revealAll(); }, LONG_PRESS_DURATION);
+    };
+    var cancelPress = () => { isPressing = false; clearTimeout(timer); };
+    var checkMove = (e) => { if(!isPressing) return; if(Math.abs(e.clientX - startX) > 10 || Math.abs(e.clientY - startY) > 10) cancelPress(); };
+
+    wrapper.addEventListener('pointerdown', startPress);
+    wrapper.addEventListener('pointerup', cancelPress);
+    wrapper.addEventListener('pointerleave', cancelPress);
+    wrapper.addEventListener('pointermove', checkMove);
+    wrapper.addEventListener('contextmenu', (e) => { e.preventDefault(); return false; });
+    window.addEventListener('resize', render);
+
+    var check = setInterval(()=>{ if(wrapper.offsetWidth>0){ clearInterval(check); render(); } }, 50);
+})(); 
+</script><style>/* --- 1. Default Center Alignment --- */
+.speech-bubble { 
+    /* Anchors the center of the bubble to the dot */
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, 10px); /* Centered horizontally, pushed down slightly */
+}
+
+.speech-bubble.active { 
+    /* "Pop up" animation state */
+    transform: translate(-50%, 0);
+}
+
+.speech-bubble::after { 
+    /* Arrow centered */
+    left: 50%; 
+    right: auto;
+    margin-left: -6px; /* Offsets half the arrow width to center perfectly */
+}
+
+/* --- 2. Left Edge Logic (Prevents cutting off on left) --- */
+.speech-bubble.is-left {
+    left: -10px;        /* Anchor left side of bubble near the dot */
+    right: auto;        /* Allow it to grow to the right */
+    transform: translate(0, 10px); /* Remove X-axis centering */
+}
+
+.speech-bubble.is-left.active {
+    transform: translate(0, 0);
+}
+
+.speech-bubble.is-left::after {
+    left: 20px;         /* Move arrow to the left side of the bubble */
+    margin-left: 0;
+}
+
+/* --- 3. Right Edge Logic (Prevents cutting off on right) --- */
+.speech-bubble.is-right {
+    left: auto;
+    right: -10px;       /* Anchor right side of bubble near the dot */
+    transform: translate(0, 10px); /* Remove X-axis centering */
+}
+
+.speech-bubble.is-right.active {
+    transform: translate(0, 0);
+}
+
+.speech-bubble.is-right::after {
+    left: auto;         /* Unset left */
+    right: 20px;        /* Move arrow to the right side of the bubble */
+    margin-left: 0;
+}</style>

@@ -1,0 +1,187 @@
+/* ================= GLOBAL LAYOUT ================= */
+html { height: 100%; }
+body { 
+    margin: 0; padding: 0; height: 100%; 
+    background-color: #f0f2f5; 
+    font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+    display: flex; flex-direction: column; 
+}
+
+
+/* Hide Scrollbars */
+::-webkit-scrollbar { display: none; }
+* { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ================= MAIN CONTAINER ================= */
+/* Default style matches Front Card & Editor (App-like) */
+.card-container {
+    background-color: #f8f9fa; /* Ice White */
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    box-shadow: 0 0 20px rgba(0,0,0,0.05);
+    position: relative;
+border-radius: 15px;
+}
+
+/* Specific modifier for Editor Mode (Adds space for toolbar) */
+.card-container.editor-mode {
+    padding-top: 120px; 
+}
+
+/* Specific modifier for Back Answer View (Looks like a Text Card) */
+#back-view-root .card-container {
+    background-color: #ffffff;
+    border-radius: 16px;
+    padding: 24px;
+    min-height: 100vh;
+}
+#back-view-root .card-container > br { display: none; }
+
+/* ================= TEXT ELEMENTS ================= */
+.header-section { padding: 15px 20px 5px 20px; flex-shrink: 0; }
+.deck-text { font-size: 11px; opacity: 0.4; text-align: center; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 1px; }
+.front-text { font-weight: 600; color: #2c3e50; margin-bottom: 10px; text-align: center; font-size: 18px; }
+.back-text { color: #34495e; margin-bottom: 30px; font-size: 18px; line-height: 1.5; }
+#answer-separator { border: none; border-top: 2px solid #f0f2f5; margin: 25px 0; width: 100%; }
+
+/* ================= APP VIEWPORT & LAYERS ================= */
+.integrated-app {
+    flex: 1; display: flex; flex-direction: column; justify-content: center;
+    background: #f8f9fa; position: relative; border-top: 1px solid #e1e4e8;
+}
+.app-viewport {
+    position: relative; width: 100%; touch-action: none; user-select: none;
+    transition: box-shadow 0.2s ease;
+}
+#img-stack img { display: block; width: 100%; pointer-events: none; }
+#ref-layer, #text-layer, #svg-layer, .label-overlay, #gizmo-layer {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;
+}
+#ref-layer { z-index: 10; }
+#text-layer { z-index: 15; }
+#svg-layer { z-index: 20; }
+.label-overlay { z-index: 40; }
+#gizmo-layer { z-index: 100; }
+
+/* ================= GAME ITEMS ================= */
+.img-text { position: absolute; transform-origin: center center; text-align: center; white-space: pre-wrap; font-family: sans-serif; transition: all 0.2s; pointer-events: auto; }
+.occ-shape, .quiz-shape { vector-effect: non-scaling-stroke; cursor: pointer; pointer-events: auto; }
+.ref-img { pointer-events: auto; }
+.game-dot, .img-dot { 
+    display: flex; align-items: center; justify-content: center; box-sizing: border-box; border-style: solid; font-weight: bold; cursor: pointer; pointer-events: auto; 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3); transition: all 0.2s ease; 
+}
+.game-dot.dot-active { transform: scale(1.2); box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.3); }
+
+/* ================= TOOLBAR (EDITOR) ================= */
+.sticky-wrapper { position: fixed; top: 0; left: 0; width: 100vw; z-index: 10000; background: #2c3e50; box-shadow: 0 2px 10px rgba(0,0,0,.40); }
+.app-toolbar { background: #2c3e50; padding: 6px 8px; display: flex; flex-direction: column; gap: 6px; box-sizing: border-box; }
+
+.tb-scroll {
+  /* CONTAINER SIZING: */
+  width: fit-content;      /* Shrink width to fit buttons exactly... */
+  max-width: 100%;         /* ...but never grow larger than the screen */
+  margin: 0 auto;          /* Center the container itself within the toolbar */
+  box-sizing: border-box;  /* Ensure padding doesn't cause overflow */
+
+  /* LAYOUT: */
+  display: flex;
+  align-items: center;
+  justify-content: flex-start; /* Keep items left-aligned INSIDE the box so scrolling works */
+  
+  /* SCROLLING: */
+  gap: 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0 4px;
+  height: 34px;
+}
+
+.tb-scroll::-webkit-scrollbar {
+  display: none;
+}
+.tb-scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.tb-btn { height: 30px; padding: 0 8px; border-radius: 8px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.20); color: #fff; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; user-select: none; }
+.tb-btn svg { width: 16px; height: 16px; display: block; }
+.tb-btn.active { background: #3498db; border-color: #3498db; }
+.tb-div { width: 1px; height: 18px; background: rgba(255,255,255,.15); margin: 0 4px; flex-shrink: 0; }
+.tb-red { color: #e74c3c; border-color: rgba(231,76,60,.40); }
+.tb-green { color: #2ecc71; border-color: rgba(46,204,113,.40); }
+
+/* ================= CONTEXT MENUS ================= */
+.tool-menus { width: 100%; height: auto; padding: 0; margin: 0; border: none; }
+
+.tool-menu {
+  display: none; /* JS toggles this to flex */
+  
+  /* LAYOUT */
+  width: 100%;
+  height: auto;           /* Allow growing height */
+  min-height: 34px; 
+  flex-wrap: wrap;        /* Allow wrapping to new rows */
+  overflow: visible;      /* No scrolling */
+  
+  /* ALIGNMENT */
+  justify-content: center; /* Centers the tools in the middle of the row */
+  align-items: center;
+  
+  /* SPACING */
+  gap: 6px;
+  padding: 4px 6px;
+  box-sizing: border-box;
+
+  /* STYLE */
+  background: rgba(255,255,255,.02);
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 10px;
+}
+
+.tb-pill { height: 30px; display: inline-flex; align-items: center; gap: 6px; padding: 0 8px; border-radius: 10px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.20); flex: 0 0 auto; color: #fff; }
+.tb-ico { opacity: .9; display: inline-flex; align-items: center; justify-content: center; min-width: 18px; }
+.tb-pill input[type="range"] { width: 92px; height: 18px; padding: 0; margin: 0; accent-color: #3498db; }
+.tb-pill input[type="color"] { width: 28px; height: 22px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.tb-mini { height: 24px; min-width: 28px; padding: 0 6px; border-radius: 8px; background: rgba(0,0,0,.18); border: 1px solid rgba(255,255,255,.16); color: #fff; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex: 0 0 auto; }
+.tb-mini.active, .tb-toggle.active { background: #3498db; border-color: #3498db; }
+
+/* ================= EXTRAS (Bubbles & Extension) ================= */
+.point-group { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; pointer-events: none; z-index: 100; }
+.speech-bubble { position: absolute; background: #2c3e50; color: white; padding: 8px 12px; border-radius: 6px; font-size: 14px; white-space: pre-wrap; text-align: center; width: max-content; max-width: 200px; opacity: 0; pointer-events: none; transform: translateY(10px); transition: all 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 101; }
+.speech-bubble.active { opacity: 1; transform: translateY(0); pointer-events: auto; }
+.speech-bubble::after { content: ''; position: absolute; top: 100%; left: 50%; margin-left: -6px; border: 6px solid transparent; border-top-color: #2c3e50; }
+.extension-container { margin-top: auto; padding: 15px; background-color: #f8f9fa; border-left: 4px solid #bdc3c7; border-radius: 6px; text-align: left; margin-bottom: 20px; }
+.extension-label { font-size: 11px; font-weight: bold; color: #7f8c8d; margin-bottom: 5px; }
+.extension-text { font-size: 0.95em; color: #57606f; }
+
+/* ================= GIZMOS ================= */
+.gizmo-box { position: absolute; border: 1px dashed #3498db; pointer-events: none; z-index: 100; box-sizing: border-box; }
+.gizmo-handle { width: 12px; height: 12px; background: #3498db; border: 2px solid #fff; border-radius: 50%; position: absolute; pointer-events: auto; box-shadow: 0 1px 3px rgba(0,0,0,.30); }
+.gizmo-handle.move { top: 50%; left: 50%; transform: translate(-50%,-50%); cursor: move; width: 16px; height: 16px; border-radius: 6px; }
+.gizmo-handle.dot-mover { background: #f1c40f !important; border: 2px solid #fff; box-shadow: 0 2px 5px rgba(0,0,0,.30); }
+.gizmo-vertex { position: absolute; width: 10px; height: 10px; background: #fff; border: 1px solid #3498db; transform: translate(-50%,-50%); pointer-events: auto; cursor: crosshair; }
+
+/* ================= NIGHT MODE ================= */
+.nightMode body { background-color: #121212; }
+.nightMode .card-container { background-color: #1e1e1e; box-shadow: none; color: #ecf0f1; }
+.nightMode #back-view-root .card-container { background-color: #1e1e1e; }
+.nightMode .front-text { color: #ecf0f1; }
+.nightMode .back-text { color: #bdc3c7; }
+.nightMode .deck-text { color: #888; }
+/* Keep Game Board Light in Night Mode for visibility */
+.nightMode .integrated-app, .nightMode .app-viewport { background: #f8f9fa !important; border-color: #333; color: #2c3e50 !important; }
+.nightMode .speech-bubble { background: #34495e; color: #fff; }
+.nightMode .speech-bubble::after { border-top-color: #34495e; }
+.nightMode .extension-container { background-color: #252526; border-left-color: #555; }
+.nightMode .extension-label { color: #888; }
+.nightMode .extension-text { color: #aaa; }
+/* Toolbar Dark Mode */
+.nightMode .sticky-wrapper, .nightMode .app-toolbar { background: #1a1a1a; }
+.nightMode .tool-menu { background: rgba(255,255,255,.02); border-color: rgba(255,255,255,.10); }
+.nightMode .tb-mini, .nightMode .tb-pill { background: rgba(0,0,0,.18); border-color: rgba(255,255,255,.10); }
