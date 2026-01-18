@@ -1,45 +1,43 @@
 <div class="card-container">
-    <div id="d-image" style="display:none">{{Image}}</div>
-    <div id="d-objimages" style="display:none">{{ObjectImages}}</div>
+    <div id="d-front" style="display:none">{{Front}}</div>
     <div id="d-savecode" style="display:none">{{SaveCode}}</div>
 
     <div class="header-section">
         <div class="deck-text">{{Deck}}</div>
-        <div class="front-text">{{Front}}</div>
     </div>
 
     <div class="integrated-app" id="app-root">
-        <div class="app-viewport" id="game-wrapper" style="touch-action: pan-x pan-y pinch-zoom; overflow: visible;">
-            <div id="img-stack"></div>
-            <div id="ref-layer"></div>
-            <div id="text-layer"></div>
-            <svg id="svg-layer"></svg>
-            <div class="label-overlay" id="overlay"></div>
-        </div>
+        <div class="front-content" id="front-content"></div>
+        <template id="game-area-template">
+            <div class="app-viewport game-area" style="touch-action: pan-x pan-y pinch-zoom; overflow: visible;">
+                <div class="img-stack"></div>
+                <div class="ref-layer"></div>
+                <div class="text-layer"></div>
+                <svg class="svg-layer"></svg>
+                <div class="label-overlay"></div>
+            </div>
+        </template>
     </div>
 </div>
 
 <script>
 (function() {
-    var wrapper = document.getElementById('game-wrapper');
-    var imgStack = document.getElementById('img-stack');
-    var refLayer = document.getElementById('ref-layer');
-    var svgLayer = document.getElementById('svg-layer');
-    var textLayer = document.getElementById('text-layer');
-    var overlay = document.getElementById('overlay');
+    var frontSourceEl = document.getElementById('d-front');
+    var saveEl = document.getElementById('d-savecode');
+    var frontContent = document.getElementById('front-content');
+    var areaTemplate = document.getElementById('game-area-template');
 
-    var GHOST_OPACITY = 0.05; 
-    var LONG_PRESS_DURATION = 600; 
+    var GHOST_OPACITY = 0.05;
+    var LONG_PRESS_DURATION = 600;
 
     var hexToRgb = (h) => { var r=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(h); return r?{r:parseInt(r[1],16),g:parseInt(r[2],16),b:parseInt(r[3],16)}:{r:0,g:0,b:0}; };
     var hexWithOpacity = (h, o) => { if(!h||h==='none') return 'transparent'; var r=hexToRgb(h); return `rgba(${r.r},${r.g},${r.b},${o})`; };
 
-    // --- Path Generation ---
     var getPathData = (points, isClosed, isSmooth, radius, W, H) => {
         var p = points.map(pt => ({x:(pt.x/100)*W, y:(pt.y/100)*H}));
         if(p.length < 2) return "";
         var d = "";
-        
+
         if (isSmooth) {
             d = "M "+p[0].x.toFixed(1)+" "+p[0].y.toFixed(1);
             var loop = isClosed ? p.concat([p[0],p[1]]) : p;
@@ -75,53 +73,153 @@
         return d;
     };
 
-    // --- Data Parsing ---
-    var rawSave = (document.getElementById('d-savecode').innerText || "").replace(/^coords:/, '').trim();
-    var data = {points:[], occlusions:[], texts:[], refs:[]};
-    if(rawSave) { try { data = JSON.parse(rawSave); } catch(e){} }
+    function extractMarker(prevNode) {
+        if (!prevNode || prevNode.nodeType !== Node.TEXT_NODE) return null;
+        var text = prevNode.textContent;
+        var match = text.match(/(\*{1,2})\s*$/);
+        if (!match) return null;
+        prevNode.textContent = text.slice(0, match.index);
+        if (!prevNode.textContent.trim()) {
+            prevNode.remove();
+        }
+        return match[1];
+    }
 
-    var pts = data.points || [], occlusions = data.occlusions || [], texts = data.texts || [], refs = data.refs || [];
+    function getImageKey(src) {
+        if (!src) return '';
+        var clean = src.split('/').pop() || src;
+        try { return decodeURIComponent(clean); } catch (e) { return clean; }
+    }
 
-    // --- Render Images ---
-    var bgHtml = document.getElementById('d-image').innerHTML;
-    var tmp = document.createElement('div');
-    tmp.innerHTML = bgHtml;
-    tmp.querySelectorAll('img').forEach(img => {
-        img.style.width = '100%';
-        imgStack.appendChild(img);
+    function createGameArea(baseImg) {
+        if (!areaTemplate || !areaTemplate.content) return null;
+        var wrapperEl = areaTemplate.content.firstElementChild.cloneNode(true);
+        var imgStackEl = wrapperEl.querySelector('.img-stack');
+        baseImg.classList.add('game-image');
+        baseImg.style.width = '100%';
+        baseImg.style.display = 'block';
+        imgStackEl.appendChild(baseImg);
+        return {
+            wrapper: wrapperEl,
+            imgStack: imgStackEl,
+            refLayer: wrapperEl.querySelector('.ref-layer'),
+            textLayer: wrapperEl.querySelector('.text-layer'),
+            svgLayer: wrapperEl.querySelector('.svg-layer'),
+            overlay: wrapperEl.querySelector('.label-overlay'),
+            baseSrc: baseImg.src || '',
+            objectImages: [],
+            data: { points: [], occlusions: [], texts: [], refs: [] }
+        };
+    }
+
+    function buildFrontLayout(html) {
+        if (!frontContent) return [];
+        var tmp = document.createElement('div');
+        tmp.innerHTML = html || '';
+        frontContent.innerHTML = '';
+        var fragment = document.createDocumentFragment();
+        var areaList = [];
+        var lastArea = null;
+
+        function flushFragment() {
+            if (fragment.childNodes.length) {
+                frontContent.appendChild(fragment);
+                fragment = document.createDocumentFragment();
+            }
+        }
+
+        Array.from(tmp.childNodes).forEach(node => {
+            if (node.nodeType === Node.TEXT_NODE && !node.textContent.trim()) {
+                return;
+            }
+            if (node.nodeType === Node.ELEMENT_NODE && node.tagName.toLowerCase() === 'img') {
+                var marker = extractMarker(node.previousSibling);
+                if (marker === '*') {
+                    flushFragment();
+                    var area = createGameArea(node);
+                    if (area) {
+                        areaList.push(area);
+                        lastArea = area;
+                        frontContent.appendChild(area.wrapper);
+                    }
+                    return;
+                }
+                if (marker === '**' && lastArea) {
+                    lastArea.objectImages.push(node);
+                    return;
+                }
+            }
+            fragment.appendChild(node);
+        });
+        flushFragment();
+        return areaList;
+    }
+
+    var rawSave = (saveEl && saveEl.innerText ? saveEl.innerText : "").replace(/^coords:/, '').trim();
+    var loaded = {};
+    if(rawSave) { try { loaded = JSON.parse(rawSave); } catch(e){} }
+    var saveByImage = {};
+    if (loaded && (loaded.points || loaded.occlusions || loaded.texts || loaded.refs)) {
+        saveByImage.__legacy__ = loaded;
+    } else if (loaded && typeof loaded === 'object') {
+        saveByImage = loaded;
+    }
+
+    var areas = buildFrontLayout(frontSourceEl ? frontSourceEl.innerHTML : '');
+    areas.forEach(area => {
+        var baseKey = getImageKey(area.baseSrc);
+        var entry = saveByImage[area.baseSrc] || saveByImage[baseKey] || saveByImage.__legacy__ || {};
+        area.data = {
+            points: entry.points || [],
+            occlusions: entry.occlusions || [],
+            texts: entry.texts || [],
+            refs: entry.refs || []
+        };
+        area.objectImages.forEach(imgNode => {
+            if(!imgNode || !imgNode.src) return;
+            var exists = area.data.refs.some(r => r && r.src === imgNode.src);
+            if (!exists) {
+                area.data.refs.push({
+                    src: imgNode.src, x:50, y:50, w:25, rot:0, opacity:1,
+                    isQuiz:true, radius:0,
+                    borderOn:false, borderW:2, borderOp:1, borderC:'#000000',
+                    crop:{t:0,r:0,b:0,l:0},
+                    dotX:0, dotY:0
+                });
+            }
+        });
     });
 
     var revealAll = () => {
-        // Reveal Shapes
-        document.querySelectorAll('.quiz-shape').forEach((el, idx) => {
-            var o = occlusions[idx];
+        frontContent.querySelectorAll('.quiz-shape').forEach((el) => {
+            var o = el.__occlusionData;
             if(o && o.isQuiz) {
                 el.setAttribute('fill-opacity', GHOST_OPACITY);
                 if(o.strokeColor !== 'none') el.setAttribute('stroke-opacity', GHOST_OPACITY);
             }
         });
-        
-        // Reveal Text & Images via their dots
-        document.querySelectorAll('.quiz-toggle-dot').forEach(dot => {
-            if(dot.style.background.indexOf('3498db') > -1) dot.click(); 
+
+        frontContent.querySelectorAll('.quiz-toggle-dot').forEach(dot => {
+            if(dot.style.background.indexOf('3498db') > -1) dot.click();
         });
 
-        document.querySelectorAll('.speech-bubble').forEach(b => b.classList.add('active'));
-        document.querySelectorAll('.game-dot-point').forEach(d => d.classList.add('dot-active'));
+        frontContent.querySelectorAll('.speech-bubble').forEach(b => b.classList.add('active'));
+        frontContent.querySelectorAll('.game-dot-point').forEach(d => d.classList.add('dot-active'));
 
-        wrapper.style.boxShadow = "inset 0 0 0 4px #3498db";
-        setTimeout(() => wrapper.style.boxShadow = "none", 300);
+        areas.forEach(area => {
+            area.wrapper.style.boxShadow = "inset 0 0 0 4px #3498db";
+            setTimeout(() => area.wrapper.style.boxShadow = "none", 300);
+        });
     };
 
-    var render = () => {
-        var W = wrapper.offsetWidth, H = wrapper.offsetHeight;
+    var renderArea = (area) => {
+        var W = area.wrapper.offsetWidth, H = area.wrapper.offsetHeight;
         if(W === 0) return;
 
         var k = W / 800;
-        svgLayer.innerHTML=""; textLayer.innerHTML=""; overlay.innerHTML=""; refLayer.innerHTML="";
+        area.svgLayer.innerHTML=""; area.textLayer.innerHTML=""; area.overlay.innerHTML=""; area.refLayer.innerHTML="";
 
-        // 1. REFS (Images)
-        refs.forEach(r => {
+        area.data.refs.forEach(r => {
             var container = document.createElement('div');
             container.style.cssText = `position:absolute; left:${r.x}%; top:${r.y}%; width:${r.w}%; transform:translate(-50%,-50%) rotate(${r.rot||0}deg); pointer-events:none;`;
 
@@ -150,11 +248,10 @@
                 if(r.crop) img.style.clipPath = `inset(${r.crop.t}% ${r.crop.r}% ${r.crop.b}% ${r.crop.l}%)`;
             }
             container.appendChild(img);
-            refLayer.appendChild(container);
+            area.refLayer.appendChild(container);
         });
 
-        // 2. TEXTS
-        texts.forEach(t => {
+        area.data.texts.forEach(t => {
             var d = document.createElement('div');
             d.className='img-text quiz-text';
             d.innerText=t.text;
@@ -164,8 +261,8 @@
             if(t.bold) d.style.fontWeight='bold';
             if(t.italic) d.style.fontStyle='italic';
             if(t.underline) d.style.textDecoration='underline';
-            
-            if(t.bgOn){ 
+
+            if(t.bgOn){
                 d.style.backgroundColor=hexWithOpacity(t.bgColor,t.bgOpacity);
                 d.style.padding=((t.bgRad||4)*k)+'px';
                 d.style.borderRadius=((t.bgRad||4)*k)+'px';
@@ -174,37 +271,36 @@
             if(t.isQuiz !== false) {
                 d.style.opacity = 1;
                 d.style.pointerEvents = 'auto';
-                
+
                 var originalColor = t.color;
                 var originalBg = t.bgOn ? hexWithOpacity(t.bgColor,t.bgOpacity) : 'transparent';
-                
+
                 d.style.color = 'transparent';
                 d.style.backgroundColor = 'transparent';
                 d.style.userSelect = 'none';
-                
+
                 var tDot = document.createElement('div');
                 tDot.className = 'game-dot quiz-toggle-dot';
                 var dotSz = 14*k;
                 tDot.style.cssText = `position:absolute; left:${50+(t.dotX||0)}%; top:${50+(t.dotY||0)}%; width:${dotSz}px; height:${dotSz}px; background:#3498db; border:2px solid white; transform:translate(-50%,-50%) rotate(45deg); cursor:pointer; pointer-events:auto; box-shadow:0 2px 4px rgba(0,0,0,0.3);`;
-                
+
                 var toggleText = () => {
                     var isHidden = (d.style.color === 'transparent');
                     d.style.color = isHidden ? originalColor : 'transparent';
                     d.style.backgroundColor = isHidden ? originalBg : 'transparent';
                     tDot.style.background = isHidden ? "#2ecc71" : "#3498db";
                 };
-                
+
                 tDot.onclick = (e) => { e.stopPropagation(); toggleText(); };
                 d.onclick = (e) => { if(d.style.color !== 'transparent') toggleText(); };
-                
+
                 d.appendChild(tDot);
             }
 
-            textLayer.appendChild(d);
+            area.textLayer.appendChild(d);
         });
 
-        // 3. SHAPES (Occlusions)
-        occlusions.forEach(o => {
+        area.data.occlusions.forEach(o => {
             var el = document.createElementNS("http://www.w3.org/2000/svg", o.type==='rect'?'rect':'path');
             el.setAttribute('class', 'quiz-shape');
             var pxX=o.x/100*W, pxY=o.y/100*H, pxW=o.w/100*W, pxH=o.h/100*H, cx=pxX+pxW/2, cy=pxY+pxH/2;
@@ -218,6 +314,7 @@
             el.setAttribute('transform',`rotate(${o.rot||0},${cx},${cy})`);
             el.setAttribute('fill', o.noFill?'none':o.color); el.setAttribute('fill-opacity', o.fillOpacity);
             el.setAttribute('stroke', o.strokeColor); el.setAttribute('stroke-width', o.strokeWidth*k); el.setAttribute('stroke-opacity', o.strokeOpacity);
+            el.__occlusionData = o;
 
             if(o.isQuiz) {
                 el.style.cursor='pointer';
@@ -229,43 +326,42 @@
                     if(o.strokeColor !== 'none') el.setAttribute('stroke-opacity', toGhost ? GHOST_OPACITY : o.strokeOpacity);
                 };
             }
-            svgLayer.appendChild(el);
+            area.svgLayer.appendChild(el);
         });
 
-        // 4. POINTS (WITH SMART POSITIONING)
         var visiblePointCount = 0;
-        pts.forEach((p, i) => {
+        area.data.points.forEach((p, i) => {
             var grp = document.createElement('div'); grp.className = 'point-group'; grp.style.left = p.x+'%'; grp.style.top = p.y+'%';
             var d = document.createElement('div'); d.className='game-dot game-dot-point';
             if(p.showNum!==false) { visiblePointCount++; d.innerText = visiblePointCount; }
             var sz=(p.size||12)*k; d.style.width=sz+'px'; d.style.height=sz+'px'; d.style.fontSize=Math.max(8, sz*0.6)+'px';
             d.style.backgroundColor = hexWithOpacity(p.color,p.fillOpacity||1); d.style.borderColor=hexWithOpacity(p.borderColor||'#000',p.strokeOpacity||1);
             d.style.color=p.borderColor||'#000'; d.style.borderWidth=(p.borderW*k||2)+'px'; d.style.borderRadius=(p.borderRad!==undefined?p.borderRad:50)+'%';
-            
-            var bub = document.createElement('div'); 
-            bub.className='speech-bubble'; 
-            bub.innerText=p.text; 
+
+            var bub = document.createElement('div');
+            bub.className='speech-bubble';
+            bub.innerText=p.text;
             bub.style.bottom=(sz/2+10)+'px';
 
-            // --- SMART POSITIONING CHECK ---
             if(p.x < 15) {
                 bub.classList.add('is-left');
             } else if (p.x > 85) {
                 bub.classList.add('is-right');
             }
-            // -------------------------------
 
-            d.onclick=(e)=>{ 
-                e.stopPropagation(); 
-                var act=bub.classList.contains('active'); 
-                document.querySelectorAll('.speech-bubble').forEach(b=>b.classList.remove('active')); 
-                document.querySelectorAll('.game-dot-point').forEach(dot=>dot.classList.remove('dot-active')); 
-                if(!act){ bub.classList.add('active'); d.classList.add('dot-active'); } 
+            d.onclick=(e)=>{
+                e.stopPropagation();
+                var act=bub.classList.contains('active');
+                frontContent.querySelectorAll('.speech-bubble').forEach(b=>b.classList.remove('active'));
+                frontContent.querySelectorAll('.game-dot-point').forEach(dot=>dot.classList.remove('dot-active'));
+                if(!act){ bub.classList.add('active'); d.classList.add('dot-active'); }
             };
-            
-            grp.appendChild(d); grp.appendChild(bub); overlay.appendChild(grp);
+
+            grp.appendChild(d); grp.appendChild(bub); area.overlay.appendChild(grp);
         });
     };
+
+    var renderAll = () => areas.forEach(renderArea);
 
     var timer, startX, startY, isPressing = false;
     var startPress = (e) => {
@@ -277,15 +373,22 @@
     var cancelPress = () => { isPressing = false; clearTimeout(timer); };
     var checkMove = (e) => { if(!isPressing) return; if(Math.abs(e.clientX - startX) > 10 || Math.abs(e.clientY - startY) > 10) cancelPress(); };
 
-    wrapper.addEventListener('pointerdown', startPress);
-    wrapper.addEventListener('pointerup', cancelPress);
-    wrapper.addEventListener('pointerleave', cancelPress);
-    wrapper.addEventListener('pointermove', checkMove);
-    wrapper.addEventListener('contextmenu', (e) => { e.preventDefault(); return false; });
-    window.addEventListener('resize', render);
+    areas.forEach(area => {
+        area.wrapper.addEventListener('pointerdown', startPress);
+        area.wrapper.addEventListener('pointerup', cancelPress);
+        area.wrapper.addEventListener('pointerleave', cancelPress);
+        area.wrapper.addEventListener('pointermove', checkMove);
+        area.wrapper.addEventListener('contextmenu', (e) => { e.preventDefault(); return false; });
+    });
+    window.addEventListener('resize', renderAll);
 
-    var check = setInterval(()=>{ if(wrapper.offsetWidth>0){ clearInterval(check); render(); } }, 50);
-})(); 
+    var check = setInterval(()=>{
+        if(areas.some(area => area.wrapper.offsetWidth>0)){
+            clearInterval(check);
+            renderAll();
+        }
+    }, 50);
+})();
 </script><style>/* --- 1. Default Center Alignment --- */
 .speech-bubble { 
     /* Anchors the center of the bubble to the dot */

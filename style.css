@@ -48,6 +48,39 @@ border-radius: 15px;
 .back-text { color: #34495e; margin-bottom: 30px; font-size: 18px; line-height: 1.5; }
 #answer-separator { border: none; border-top: 2px solid #f0f2f5; margin: 25px 0; width: 100%; }
 
+/* ================= FRONT CONTENT ================= */
+.front-content {
+    color: #2c3e50;
+    font-size: 18px;
+    line-height: 1.5;
+    text-align: left;
+    padding: 0 20px 20px;
+}
+.front-content img:not(.game-image) {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    display: block;
+    margin: 12px auto;
+}
+.game-area {
+    margin-top: 12px;
+    border-radius: 0;
+    overflow: hidden;
+}
+.game-area + .game-area {
+    margin-top: 0;
+}
+.front-content > *:not(.game-area) {
+    margin-top: 12px;
+}
+.front-content > *:first-child {
+    margin-top: 0;
+}
+.game-area .img-stack img {
+    border-radius: 0;
+}
+
 /* ================= APP VIEWPORT & LAYERS ================= */
 .integrated-app {
     flex: 1; display: flex; flex-direction: column; justify-content: center;
@@ -57,15 +90,15 @@ border-radius: 15px;
     position: relative; width: 100%; touch-action: none; user-select: none;
     transition: box-shadow 0.2s ease;
 }
-#img-stack img { display: block; width: 100%; pointer-events: none; }
-#ref-layer, #text-layer, #svg-layer, .label-overlay, #gizmo-layer {
+.img-stack img { display: block; width: 100%; pointer-events: none; }
+.ref-layer, .text-layer, .svg-layer, .label-overlay, .gizmo-layer {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;
 }
-#ref-layer { z-index: 10; }
-#text-layer { z-index: 15; }
-#svg-layer { z-index: 20; }
+.ref-layer { z-index: 10; }
+.text-layer { z-index: 15; }
+.svg-layer { z-index: 20; }
 .label-overlay { z-index: 40; }
-#gizmo-layer { z-index: 100; }
+.gizmo-layer { z-index: 100; }
 
 /* ================= GAME ITEMS ================= */
 .img-text { position: absolute; transform-origin: center center; text-align: center; white-space: pre-wrap; font-family: sans-serif; transition: all 0.2s; pointer-events: auto; }
@@ -172,6 +205,7 @@ border-radius: 15px;
 .nightMode .card-container { background-color: #1e1e1e; box-shadow: none; color: #ecf0f1; }
 .nightMode #back-view-root .card-container { background-color: #1e1e1e; }
 .nightMode .front-text { color: #ecf0f1; }
+.nightMode .front-content { color: #ecf0f1; }
 .nightMode .back-text { color: #bdc3c7; }
 .nightMode .deck-text { color: #888; }
 /* Keep Game Board Light in Night Mode for visibility */
