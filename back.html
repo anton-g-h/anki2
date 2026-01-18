@@ -21,8 +21,6 @@ window.onerror = function(msg, url, lineNo, columnNo, error) {
 <div id="back-view-root">
   <div class="card-container">
     <div class="deck-text">{{Deck}}</div>
-    <div class="front-text" id="game-wrapper-back">{{Front}}</div>
-    <hr id="answer-separator">
     <div class="back-text">{{Back}}</div>
     {{#Explanation}}
     <div class="extension-container">
@@ -35,12 +33,11 @@ window.onerror = function(msg, url, lineNo, columnNo, error) {
 
 <div id="editor-container" style="display:none;">
   <div class="card-container editor-mode">
-    <div id="d-image" style="display:none">{{Image}}</div>
-    <div id="d-objectimages" style="display:none">{{ObjectImages}}</div>
+    <div id="d-front" style="display:none">{{Front}}</div>
     <div id="d-savecode" style="display:none">{{SaveCode}}</div>
 
     <div class="deck-text">{{Deck}}</div>
-    <div class="front-text">{{Front}}</div>
+    <div class="front-content" id="editor-front-content"></div>
 
     <div class="integrated-app" id="app-root">
       <div class="sticky-wrapper">
@@ -506,22 +503,26 @@ window.onerror = function(msg, url, lineNo, columnNo, error) {
         </div>
       </div>
 
-      <div class="app-viewport" id="game-wrapper">
-        <canvas id="sampler-canvas" style="display:none;"></canvas>
-        <div id="img-stack"></div>
-        <div id="ref-layer" style="z-index:15; position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;"></div>
-        <div id="text-layer"></div>
-        <svg id="svg-layer"></svg>
-        <div class="label-overlay" id="overlay"></div>
-        <div id="gizmo-layer"></div>
+      <div id="editor-game-areas" class="game-areas"></div>
 
-        <div id="picker-preview" style="display:none; position:fixed; z-index:200000; pointer-events:none; transform:translate(12px, 12px);">
-          <div style="display:flex; align-items:center; gap:8px; background:rgba(0,0,0,0.75); color:#fff; padding:6px 8px; border-radius:8px; font-size:11px; font-family:monospace; box-shadow:0 4px 12px rgba(0,0,0,0.35);">
-            <div id="picker-swatch" style="width:18px; height:18px; border-radius:4px; border:1px solid rgba(255,255,255,0.5); background:#fff;"></div>
-            <div id="picker-hex">#ffffff</div>
-          </div>
+      <template id="game-area-template">
+        <div class="app-viewport game-area">
+          <div class="img-stack"></div>
+          <div class="ref-layer"></div>
+          <div class="text-layer"></div>
+          <svg class="svg-layer"></svg>
+          <div class="label-overlay"></div>
+          <div class="gizmo-layer"></div>
         </div>
+      </template>
 
+      <canvas id="sampler-canvas" style="display:none;"></canvas>
+
+      <div id="picker-preview" style="display:none; position:fixed; z-index:200000; pointer-events:none; transform:translate(12px, 12px);">
+        <div style="display:flex; align-items:center; gap:8px; background:rgba(0,0,0,0.75); color:#fff; padding:6px 8px; border-radius:8px; font-size:11px; font-family:monospace; box-shadow:0 4px 12px rgba(0,0,0,0.35);">
+          <div id="picker-swatch" style="width:18px; height:18px; border-radius:4px; border:1px solid rgba(255,255,255,0.5); background:#fff;"></div>
+          <div id="picker-hex">#ffffff</div>
+        </div>
       </div>
     </div>
   </div>
@@ -579,18 +580,31 @@ window.onerror = function(msg, url, lineNo, columnNo, error) {
     var rgbToHex = (r, g, b) => "#" + ((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
     var hexWithOpacity = (h, o) => { if(!h||h==='none') return 'transparent'; var r=hexToRgb(h); return `rgba(${r.r},${r.g},${r.b},${o})`; };
 
-    var wrapper = document.getElementById('game-wrapper'),
-        imgStack = document.getElementById('img-stack'),
-        refLayer = document.getElementById('ref-layer'),
-        overlay = document.getElementById('overlay'),
-        svgLayer = document.getElementById('svg-layer'),
-        textLayer = document.getElementById('text-layer'),
-        gizmoLayer = document.getElementById('gizmo-layer'),
-        canvas = document.getElementById('sampler-canvas');
+    var appRoot = document.getElementById('app-root');
+    var editorRoot = document.getElementById('editor-container') || document;
+    var frontSourceEl = editorRoot.querySelector('#d-front') || document.getElementById('d-front');
+    var frontContent = document.getElementById('editor-front-content');
+    var areaTemplate = document.getElementById('game-area-template');
+    var canvas = document.getElementById('sampler-canvas');
 
     var pickerPreview = document.getElementById('picker-preview');
     var pickerSwatch = document.getElementById('picker-swatch');
     var pickerHex = document.getElementById('picker-hex');
+
+    var areas = [];
+    var activeAreaIndex = 0;
+    var wrapper = null;
+    var imgStack = null;
+    var refLayer = null;
+    var overlay = null;
+    var svgLayer = null;
+    var textLayer = null;
+    var gizmoLayer = null;
+
+    var pts = [];
+    var occlusions = [];
+    var texts = [];
+    var refs = [];
 
     // Buttons
     var btns = {
@@ -620,6 +634,108 @@ window.onerror = function(msg, url, lineNo, columnNo, error) {
       polygon: document.getElementById('menu-poly'),
       ref: document.getElementById('menu-ref')
     };
+
+    function moveFrontContentIntoApp() {
+      if (!frontContent || !appRoot) return;
+      var templateHost = (areaTemplate && areaTemplate.parentNode) ? areaTemplate.parentNode : appRoot;
+      if (frontContent.parentNode !== templateHost) {
+        templateHost.insertBefore(frontContent, areaTemplate || templateHost.firstChild);
+      }
+    }
+
+    function extractMarker(prevNode) {
+      if (!prevNode || prevNode.nodeType !== Node.TEXT_NODE) return null;
+      var text = prevNode.textContent;
+      var match = text.match(/(\*{1,2})\s*$/);
+      if (!match) return null;
+      prevNode.textContent = text.slice(0, match.index);
+      if (!prevNode.textContent.trim()) {
+        prevNode.remove();
+      }
+      return match[1];
+    }
+
+    function createGameArea(baseImg) {
+      if (!areaTemplate || !areaTemplate.content) return null;
+      var wrapperEl = areaTemplate.content.firstElementChild.cloneNode(true);
+      var imgStackEl = wrapperEl.querySelector('.img-stack');
+      baseImg.classList.add('game-image');
+      baseImg.style.width = '100%';
+      baseImg.style.display = 'block';
+      imgStackEl.appendChild(baseImg);
+      return {
+        wrapper: wrapperEl,
+        imgStack: imgStackEl,
+        refLayer: wrapperEl.querySelector('.ref-layer'),
+        textLayer: wrapperEl.querySelector('.text-layer'),
+        svgLayer: wrapperEl.querySelector('.svg-layer'),
+        overlay: wrapperEl.querySelector('.label-overlay'),
+        gizmoLayer: wrapperEl.querySelector('.gizmo-layer'),
+        baseSrc: baseImg.src || '',
+        objectImages: [],
+        data: { points: [], occlusions: [], texts: [], refs: [] }
+      };
+    }
+
+    function buildFrontLayout(html) {
+      if (!frontContent) return [];
+      var tmp = document.createElement('div');
+      tmp.innerHTML = html || '';
+      frontContent.innerHTML = '';
+      var fragment = document.createDocumentFragment();
+      var areaList = [];
+      var lastArea = null;
+
+      function flushFragment() {
+        if (fragment.childNodes.length) {
+          frontContent.appendChild(fragment);
+          fragment = document.createDocumentFragment();
+        }
+      }
+
+      Array.from(tmp.childNodes).forEach(node => {
+        if (node.nodeType === Node.TEXT_NODE && !node.textContent.trim()) {
+          return;
+        }
+        if (node.nodeType === Node.ELEMENT_NODE && node.tagName.toLowerCase() === 'img') {
+          var marker = extractMarker(node.previousSibling);
+          if (marker === '*') {
+            flushFragment();
+            var area = createGameArea(node);
+            if (area) {
+              areaList.push(area);
+              lastArea = area;
+              frontContent.appendChild(area.wrapper);
+            }
+            return;
+          }
+          if (marker === '**' && lastArea) {
+            lastArea.objectImages.push(node);
+            return;
+          }
+        }
+        fragment.appendChild(node);
+      });
+      flushFragment();
+      return areaList;
+    }
+
+    function setActiveArea(index) {
+      if (!areas.length) return;
+      activeAreaIndex = Math.max(0, Math.min(index, areas.length - 1));
+      var area = areas[activeAreaIndex];
+      wrapper = area.wrapper;
+      imgStack = area.imgStack;
+      refLayer = area.refLayer;
+      textLayer = area.textLayer;
+      svgLayer = area.svgLayer;
+      overlay = area.overlay;
+      gizmoLayer = area.gizmoLayer;
+      pts = area.data.points;
+      occlusions = area.data.occlusions;
+      texts = area.data.texts;
+      refs = area.data.refs;
+    }
     function hideAllMenus(){
       Object.values(menuByTool).forEach(m => { if(m) m.style.display = 'none'; });
       _ctxOpen = false;
@@ -649,23 +765,36 @@ window.onerror = function(msg, url, lineNo, columnNo, error) {
     // ============================================================
     // LOAD SAVE DATA
     // ============================================================
-    var editorRoot = document.getElementById('editor-container') || document;
     var saveEl = editorRoot.querySelector('#d-savecode') || document.getElementById('d-savecode');
-    var imgEl  = editorRoot.querySelector('#d-image') || document.getElementById('d-image');
-    var objEl  = editorRoot.querySelector('#d-objectimages') || document.getElementById('d-objectimages');
-
     var rawSave = (saveEl && saveEl.innerText ? saveEl.innerText : "").replace(/^coords:/, '').trim();
-
-    var loaded = {points:[], occlusions:[], texts:[], refs:[]};
+    var loaded = {};
     if (rawSave) { try { loaded = JSON.parse(rawSave); } catch(e){} }
 
-    var pts = loaded.points || [],
-        occlusions = loaded.occlusions || [],
-        texts = loaded.texts || [],
-        refs = loaded.refs || [];
+    function getImageKey(src) {
+      if (!src) return '';
+      var clean = src.split('/').pop() || src;
+      try { return decodeURIComponent(clean); } catch (e) { return clean; }
+    }
 
-    function applyDefaults(){
-      pts.forEach(p=>{
+    function isLegacySave(obj) {
+      return obj && (Array.isArray(obj.points) || Array.isArray(obj.occlusions) || Array.isArray(obj.texts) || Array.isArray(obj.refs));
+    }
+
+    function normalizeSaveEntry(entry) {
+      return {
+        points: (entry && entry.points) ? entry.points : [],
+        occlusions: (entry && entry.occlusions) ? entry.occlusions : [],
+        texts: (entry && entry.texts) ? entry.texts : [],
+        refs: (entry && entry.refs) ? entry.refs : []
+      };
+    }
+
+    function applyDefaults(targetData){
+      var ptsLocal = targetData.points || [];
+      var occlusionsLocal = targetData.occlusions || [];
+      var textsLocal = targetData.texts || [];
+      var refsLocal = targetData.refs || [];
+      ptsLocal.forEach(p=>{
         if(p.isQuiz===undefined) p.isQuiz = toolStyle.point.isQuiz;
         if(p.size===undefined) p.size = toolStyle.point.size;
         if(p.borderW===undefined) p.borderW = toolStyle.point.borderW;
@@ -676,7 +805,7 @@ window.onerror = function(msg, url, lineNo, columnNo, error) {
         if(p.color===undefined) p.color = toolStyle.point.fill;
         if(p.borderColor===undefined) p.borderColor = toolStyle.point.border;
       });
-      texts.forEach(t=>{
+      textsLocal.forEach(t=>{
         if(t.isQuiz===undefined) t.isQuiz = toolStyle.text.isQuiz;
         if(t.size===undefined) t.size = toolStyle.text.size;
         if(t.rot===undefined) t.rot = toolStyle.text.rot;
@@ -689,7 +818,7 @@ window.onerror = function(msg, url, lineNo, columnNo, error) {
         if(t.dotX===undefined) t.dotX = 0;
         if(t.dotY===undefined) t.dotY = 0;
       });
-      occlusions.forEach(o=>{
+      occlusionsLocal.forEach(o=>{
         if(o.isQuiz===undefined) o.isQuiz = true;
         if(o.color===undefined) o.color = "#ffffff";
         if(o.fillOpacity===undefined) o.fillOpacity = 1.0;
@@ -701,7 +830,7 @@ window.onerror = function(msg, url, lineNo, columnNo, error) {
         if(o.connectEnds===undefined) o.connectEnds = true;
         if(o.smooth===undefined) o.smooth = false;
       });
-      refs.forEach(r=>{
+      refsLocal.forEach(r=>{
         if(r.isQuiz===undefined) r.isQuiz = true;
         if(r.w===undefined) r.w = 25;
         if(r.rot===undefined) r.rot = 0;
@@ -716,32 +845,28 @@ window.onerror = function(msg, url, lineNo, columnNo, error) {
         if(r.dotY===undefined) r.dotY = 0;
       });
     }
-    applyDefaults();
+    moveFrontContentIntoApp();
+    var frontHtml = (frontSourceEl && frontSourceEl.innerHTML) ? frontSourceEl.innerHTML : '';
+    areas = buildFrontLayout(frontHtml);
 
-    // ============================================================
-    // LOAD BACKGROUND & OBJECTS
-    // ============================================================
-    imgStack.innerHTML = "";
-    var bgHtmlOnly = (imgEl && imgEl.innerHTML) ? imgEl.innerHTML : "";
-    var bgLoader = document.createElement('div');
-    bgLoader.innerHTML = bgHtmlOnly;
-    bgLoader.querySelectorAll('img').forEach(img => {
-      var newImg = new Image();
-      newImg.src = img.src;
-      newImg.style.width = '100%';
-      newImg.crossOrigin = "anonymous";
-      imgStack.appendChild(newImg);
-    });
+    var saveByImage = {};
+    if (isLegacySave(loaded)) {
+      saveByImage.__legacy__ = normalizeSaveEntry(loaded);
+    } else if (loaded && typeof loaded === 'object') {
+      saveByImage = loaded;
+    }
 
-    var objHtml = (objEl && objEl.innerHTML) ? objEl.innerHTML : "";
-    if (objHtml) {
-      var objTmp = document.createElement('div');
-      objTmp.innerHTML = objHtml;
-      objTmp.querySelectorAll('img').forEach(imgNode => {
+    areas.forEach((area, index) => {
+      var baseKey = getImageKey(area.baseSrc);
+      var entry = saveByImage[area.baseSrc] || saveByImage[baseKey] || saveByImage.__legacy__ || null;
+      area.data = normalizeSaveEntry(entry);
+      applyDefaults(area.data);
+      area.wrapper.dataset.areaIndex = index;
+      area.objectImages.forEach(imgNode => {
         if(!imgNode || !imgNode.src) return;
-        var isDuplicate = refs.some(r => r && r.src === imgNode.src);
-        if(!isDuplicate) {
-          refs.push({
+        var exists = area.data.refs.some(r => r && r.src === imgNode.src);
+        if (!exists) {
+          area.data.refs.push({
             src: imgNode.src, x:50, y:50, w:25, rot:0, opacity:1,
             isQuiz:true, radius:0,
             borderOn:false, borderW:2, borderOp:1, borderC:'#000000',
@@ -750,7 +875,9 @@ window.onerror = function(msg, url, lineNo, columnNo, error) {
           });
         }
       });
-    }
+    });
+
+    setActiveArea(0);
 
     // ============================================================
     // STATE
@@ -838,6 +965,7 @@ window.onerror = function(msg, url, lineNo, columnNo, error) {
 
     // Picker
     function sampleColor(e){
+      if (!imgStack) return null;
       var imgs=imgStack.querySelectorAll('img');
       for(var i=0;i<imgs.length;i++){
         var im=imgs[i], r=im.getBoundingClientRect();
@@ -869,7 +997,7 @@ window.onerror = function(msg, url, lineNo, columnNo, error) {
     }
     function startPicker(toolKey, target){
       pickerMode = { tool: toolKey, target: target };
-      wrapper.style.cursor = 'crosshair';
+      if (wrapper) wrapper.style.cursor = 'crosshair';
       hideAllMenus();
       render();
     }
@@ -1295,7 +1423,7 @@ window.onerror = function(msg, url, lineNo, columnNo, error) {
       gizmoLayer.appendChild(g);
     }
 
-    function render(){
+    function renderActive(){
       svgLayer.innerHTML="";
       textLayer.innerHTML="";
       overlay.innerHTML="";
@@ -1459,6 +1587,21 @@ window.onerror = function(msg, url, lineNo, columnNo, error) {
         if(selection.type==='ref' && isCropMode) renderCropGizmo(W,H,k);
         else renderGizmo(W,H,k);
       }
+    }
+
+    function render(){
+      if (!areas.length) return;
+      var storedSelection = selection;
+      var storedActive = activeAreaIndex;
+      areas.forEach((area, idx) => {
+        setActiveArea(idx);
+        if (idx !== storedActive) {
+          selection = { type: null, index: -1 };
+        }
+        renderActive();
+      });
+      setActiveArea(storedActive);
+      selection = storedSelection;
       updateUI();
       maybeAutoSwitchMenu();
     }
@@ -1477,6 +1620,14 @@ window.onerror = function(msg, url, lineNo, columnNo, error) {
     // ============================================================
     function handleStart(e){
       if(e.target.closest('.app-toolbar')) return;
+      var areaEl = e.target.closest('.app-viewport');
+      if (!areaEl) return;
+      var nextIndex = parseInt(areaEl.dataset.areaIndex || 0, 10);
+      if (!Number.isNaN(nextIndex) && nextIndex !== activeAreaIndex) {
+        selection = { type: null, index: -1 };
+        isCropMode = false;
+        setActiveArea(nextIndex);
+      }
 
       // --- NEW STYLUS PRIORITY LOGIC ---
       // 1. Detect if this is a pen
@@ -1841,7 +1992,17 @@ window.onerror = function(msg, url, lineNo, columnNo, error) {
     };
     btns.save.onclick = (e)=>{
       e.stopPropagation();
-      var s = JSON.stringify({points:pts, occlusions:occlusions, texts:texts, refs:refs});
+      var saveData = {};
+      areas.forEach(area => {
+        var key = getImageKey(area.baseSrc);
+        saveData[key] = {
+          points: area.data.points,
+          occlusions: area.data.occlusions,
+          texts: area.data.texts,
+          refs: area.data.refs
+        };
+      });
+      var s = JSON.stringify(saveData);
       var t=document.createElement("textarea");
       t.value="coords:"+s;
       document.body.appendChild(t);
@@ -2027,12 +2188,6 @@ window.onerror = function(msg, url, lineNo, columnNo, error) {
       maybeAutoSwitchMenu();
     };
 
-    var _renderOriginal2 = render;
-    render = function(){
-      _renderOriginal2();
-      maybeAutoSwitchMenu();
-    };
-
     function bindPick(btnId, toolKey, target){
       var b = document.getElementById(btnId);
       if(!b) return;
@@ -2064,11 +2219,13 @@ window.onerror = function(msg, url, lineNo, columnNo, error) {
     // ============================================================
     // GLOBAL LISTENERS
     // ============================================================
-    wrapper.addEventListener('pointerdown', handleStart);
+    areas.forEach(area => {
+      area.wrapper.addEventListener('pointerdown', handleStart);
+    });
     window.addEventListener('pointermove', handleMove);
     window.addEventListener('pointerup', function(){
       hidePickerPreview();
-      if(!pickerMode) wrapper.style.cursor = '';
+      if(!pickerMode && wrapper) wrapper.style.cursor = '';
       handleEnd();
     });
     window.addEventListener('blur', hidePickerPreview);
@@ -2095,13 +2252,13 @@ window.onerror = function(msg, url, lineNo, columnNo, error) {
   background:#fff;border-radius:8px;overflow:hidden;
   touch-action:none; /* JS switches to auto in view mode */
 }
-#img-stack{z-index:1;position:relative}
-#img-stack img{width:100%;pointer-events:none}
-#ref-layer{z-index:10 !important;position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
-#text-layer{z-index:15;position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none !important}
-#svg-layer{z-index:20;position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none !important}
+.img-stack{z-index:1;position:relative}
+.img-stack img{width:100%;pointer-events:none}
+.ref-layer{z-index:10 !important;position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
+.text-layer{z-index:15;position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none !important}
+.svg-layer{z-index:20;position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none !important}
 .label-overlay{z-index:40;position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none !important}
-#gizmo-layer{z-index:100;position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
+.gizmo-layer{z-index:100;position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
 
 .img-text,.occ-shape,.img-dot,.ref-img{pointer-events:auto}
 .occ-shape{vector-effect:none}
